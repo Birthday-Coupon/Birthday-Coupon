@@ -1438,9 +1438,39 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
   const setSystemBanner: AppContextValue["setSystemBanner"] = async (message, severity, active) => {
     if (!currentUser?.roles.includes("admin")) return;
     const now = new Date().toISOString();
+    const cleanMessage = sanitizePlainText(message, 300);
+    let bannerId = `banner-${Date.now()}`;
+
+    if (mode === "supabase") {
+      const supabase = createSupabaseBrowserClient();
+      if (supabase) {
+        await supabase.from("system_banners").update({ is_active: false }).eq("is_active", true);
+        if (active && cleanMessage) {
+          const { data } = await supabase
+            .from("system_banners")
+            .insert({
+              message: cleanMessage,
+              severity,
+              is_active: true,
+              created_by: currentUser.id,
+            })
+            .select("id")
+            .maybeSingle();
+          if (data?.id) bannerId = String(data.id);
+        }
+        await supabase.from("admin_logs").insert({
+          admin_id: currentUser.id,
+          action: "system_banner_updated",
+          target_type: "banner",
+          target_id: bannerId,
+          details: { severity, active },
+        });
+      }
+    }
+
     const banner: SystemBanner = {
-      id: `banner-${Date.now()}`,
-      message: sanitizePlainText(message, 300),
+      id: bannerId,
+      message: cleanMessage,
       severity,
       is_active: active,
       created_at: now,
