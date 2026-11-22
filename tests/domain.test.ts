@@ -95,14 +95,14 @@ describe("Request & Benefit State Machine (Spec v2 Section 5)", () => {
     expect(adminRes.resultingBenefitStatus).toBe("redeemed");
   });
 
-  it("enforces max 3 concurrent pending requests and 24-hour new-account cooling period", () => {
+  it("enforces max 3 concurrent pending requests and 10-minute new-account cooling period", () => {
     expect(
       canCreatePendingRequest({
         benefitStatus: "active",
         existingPendingCount: 3,
         buyerId: "u1",
         ownerId: "u2",
-        accountAgeHours: 48,
+        accountAgeHours: 1,
       }).allowed
     ).toBe(false);
 
@@ -112,7 +112,7 @@ describe("Request & Benefit State Machine (Spec v2 Section 5)", () => {
         existingPendingCount: 0,
         buyerId: "u1",
         ownerId: "u2",
-        accountAgeHours: 5,
+        accountAgeHours: 5 / 60, // 5 minutes
       }).allowed
     ).toBe(false);
 
@@ -122,7 +122,7 @@ describe("Request & Benefit State Machine (Spec v2 Section 5)", () => {
         existingPendingCount: 2,
         buyerId: "u1",
         ownerId: "u2",
-        accountAgeHours: 25,
+        accountAgeHours: 15 / 60, // 15 minutes
       }).allowed
     ).toBe(true);
   });

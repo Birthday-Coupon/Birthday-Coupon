@@ -3,6 +3,7 @@ import type { BenefitStatus, RequestStatus } from "@/lib/types";
 export type ActorRoleInRequest = "buyer" | "owner" | "admin" | "system";
 
 export const MAX_CONCURRENT_PENDING_REQUESTS = 3;
+export const NEW_ACCOUNT_COOLING_MINUTES = 10;
 export const PENDING_EXPIRY_HOURS = 72;
 export const ACCEPTED_EXPIRY_DAYS = 7;
 export const PURCHASED_DISPUTE_DAYS = 14;
@@ -168,10 +169,10 @@ export function canCreatePendingRequest(params: {
       reason: `להטבה זו קיימות כבר ${MAX_CONCURRENT_PENDING_REQUESTS} בקשות ממתינות בו-זמנית.`,
     };
   }
-  if (!params.skipCoolingForDemo && params.accountAgeHours < 24) {
+  if (!params.skipCoolingForDemo && params.accountAgeHours * 60 < NEW_ACCOUNT_COOLING_MINUTES) {
     return {
       allowed: false,
-      reason: "מטעמי בטיחות, חשבונות חדשים יכולים לשלוח בקשה ראשונה לאחר 24 שעות מההרשמה.",
+      reason: "מטעמי בטיחות, חשבונות חדשים יכולים לשלוח בקשה ראשונה לאחר 10 דקות מההרשמה.",
     };
   }
   return { allowed: true };
