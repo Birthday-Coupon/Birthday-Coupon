@@ -1,23 +1,27 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import {
   CheckCircle2,
   ClipboardList,
+  LifeBuoy,
   Megaphone,
+  PlusCircle,
   Scale,
   ShieldAlert,
   Wrench,
 } from "lucide-react";
 import { useAppData } from "@/lib/data/app-context";
 import { LegalityBadge } from "@/components/Badges";
-import type { LegalityStatus } from "@/lib/types";
+import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+import type { ContactMessage, LegalityStatus, StoreSuggestion } from "@/lib/types";
 
-type AdminTab = "stores" | "disputes" | "takedowns" | "banner" | "logs";
+type AdminTab = "stores" | "contacts" | "suggestions" | "disputes" | "takedowns" | "banner" | "logs";
 
 export default function AdminPage() {
   const {
+    mode,
     currentUser,
     stores,
     disputes,
@@ -29,6 +33,9 @@ export default function AdminPage() {
   } = useAppData();
 
   const [tab, setTab] = useState<AdminTab>("stores");
+  const [contactMessages, setContactMessages] = useState<ContactMessage[]>([]);
+  const [storeSuggestions, setStoreSuggestions] = useState<StoreSuggestion[]>([]);
+  const [replyDrafts, setReplyDrafts] = useState<Record<string, string>>({});
   const [editingStoreId, setEditingStoreId] = useState<string | null>(null);
   const [legalityStatus, setLegalityStatus] = useState<LegalityStatus>("conditional");
   const [quotedClause, setQuotedClause] = useState("");
@@ -41,6 +48,70 @@ export default function AdminPage() {
 
   const isStaff =
     currentUser?.roles.includes("admin") || currentUser?.roles.includes("content_manager");
+
+  useEffect(() => {
+    if (mode !== "supabase" || !isStaff) return;
+    const supabase = createSupabaseBrowserClient();
+    if (!supabase) return;
+    void Promise.all([
+      supabase.from("contact_messages").select("*").order("created_at", { ascending: false }),
+      supabase.from("store_suggestions").select("*").order("created_at", { ascending: false }),
+    ]).then(([cRes, sRes]) => {
+      if (cRes.data) setContactMessages(cRes.data as ContactMessage[]);
+      if (sRes.data) setStoreSuggestions(sRes.data as StoreSuggestion[]);
+    });
+  }, [mode, isStaff]);
+
+  const handleReplyContact = async (msg: ContactMessage) => {
+    const reply = (replyDrafts[msg.id] ?? "").trim();
+    if (!reply) return;
+    const now = new Date().toISOString();
+    if (mode === "supabase") {
+      const supabase = createSupabaseBrowserClient();
+      await supabase
+        ?.from("contact_messages")
+        .update({ status: "resolved", admin_reply: reply, handled_by: currentUser?.id, resolved_at: now })
+        .eq("id", msg.id);
+      if (msg.user_id) {
+        await supabase?.from("notifications").insert({
+          user_id: msg.user_id,
+          type: "contact_reply",
+          title: `מענה מהנהלת האתר: ${msg.subject}`,
+          body: reply,
+          link: "/contact",
+        });
+      }
+    }
+    setContactMessages((prev) =>
+      prev.map((m) => (m.id === msg.id ? { ...m, status: "resolved", admin_reply: reply, resolved_at: now } : m))
+    );
+    setFeedback("התגובה נשמרה והפנייה סומנה כטופלה.");
+  };
+
+  const handleReviewSuggestion = async (sug: StoreSuggestion, status: "approved" | "rejected") => {
+    const note = (replyDrafts[sug.id] ?? "").trim() || (status === "approved" ? "אושר להוספה למאגר!" : "אינו עומד בתנאי שער החוקיות");
+    const now = new Date().toISOString();
+    if (mode === "supabase") {
+      const supabase = createSupabaseBrowserClient();
+      await supabase
+        ?.from("store_suggestions")
+        .update({ status, admin_note: note, reviewed_by: currentUser?.id, reviewed_at: now })
+        .eq("id", sug.id);
+      if (sug.user_id) {
+        await supabase?.from("notifications").insert({
+          user_id: sug.user_id,
+          type: "store_suggestion_reviewed",
+          title: `עדכון להצעת החנות ${sug.store_name}`,
+          body: note,
+          link: "/suggest-store",
+        });
+      }
+    }
+    setStoreSuggestions((prev) =>
+      prev.map((s) => (s.id === sug.id ? { ...s, status, admin_note: note, reviewed_at: now } : s))
+    );
+    setFeedback(`סטטוס ההצעה עבור ${sug.store_name} עודכן.`);
+  };
 
   if (!currentUser || !isStaff) {
     return (
@@ -105,6 +176,8 @@ export default function AdminPage() {
       <div className="mt-6 flex flex-wrap gap-2">
         {[
           { key: "stores" as const, label: `תור בדיקת חנויות (${stores.length})`, icon: Scale },
+          { key: "contacts" as const, label: `פניות משתמשים (${contactMessages.length})`, icon: LifeBuoy },
+          { key: "suggestions" as const, label: `הצעות לחנויות (${storeSuggestions.length})`, icon: PlusCircle },
           { key: "disputes" as const, label: `מחלוקות (${disputes.length})`, icon: ShieldAlert },
           { key: "takedowns" as const, label: `בקשות הסרה (${takedowns.length})`, icon: ClipboardList },
           { key: "banner" as const, label: "באנר מערכת", icon: Megaphone },
@@ -224,6 +297,112 @@ export default function AdminPage() {
                 )}
               </div>
             ))}
+          </div>
+        )}
+
+        {tab === "contacts" && (
+          <div className="space-y-4">
+            {contactMessages.length === 0 ? (
+              <div className="clay-card p-8 text-center text-sm text-[#5a4c73]">
+                אין פניות משתמשים כרגע.
+              </div>
+            ) : (
+              contactMessages.map((m) => (
+                <div key={m.id} className="clay-card p-5 space-y-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <h2 className="font-bold text-[#241938]">{m.subject}</h2>
+                    <span className="rounded-full bg-[#fef6d8] px-3 py-0.5 text-xs font-bold text-[#4a3204]">
+                      {m.status}
+                    </span>
+                  </div>
+                  <p className="text-xs text-[#66548a]">
+                    מאת: <strong>{m.sender_name}</strong> • קטגוריה: {m.category} • {m.created_at.slice(0, 10)}
+                  </p>
+                  <p className="text-sm text-[#382759] whitespace-pre-wrap">{m.message}</p>
+                  {m.admin_reply ? (
+                    <div className="rounded-xl bg-emerald-50 border border-emerald-200 p-3 text-xs text-emerald-950">
+                      <strong>תגובה שנשלחה:</strong> {m.admin_reply}
+                    </div>
+                  ) : (
+                    <div className="flex flex-col gap-2 sm:flex-row">
+                      <input
+                        value={replyDrafts[m.id] ?? ""}
+                        onChange={(e) => setReplyDrafts((p) => ({ ...p, [m.id]: e.target.value }))}
+                        placeholder="כתוב תגובה למשתמש..."
+                        className="flex-1 rounded-xl border border-[#dfd2fb] bg-[#fbf9ff] px-3 py-2 text-sm"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => void handleReplyContact(m)}
+                        className="clay-btn-primary px-5 py-2 text-xs font-bold"
+                      >
+                        שלח מענה וסמן כטופל
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ))
+            )}
+          </div>
+        )}
+
+        {tab === "suggestions" && (
+          <div className="space-y-4">
+            {storeSuggestions.length === 0 ? (
+              <div className="clay-card p-8 text-center text-sm text-[#5a4c73]">
+                אין הצעות לחנויות חדשות כרגע.
+              </div>
+            ) : (
+              storeSuggestions.map((s) => (
+                <div key={s.id} className="clay-card p-5 space-y-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <h2 className="font-bold text-[#241938]">{s.store_name}</h2>
+                    <span className="rounded-full bg-[#e7dbfd] px-3 py-0.5 text-xs font-bold text-[#3b226b]">
+                      {s.status}
+                    </span>
+                  </div>
+                  <p className="text-xs text-[#66548a]">
+                    הוצע ע״י: <strong>{s.submitter_name}</strong> •{" "}
+                    <a href={s.website_url} target="_blank" rel="noopener noreferrer" className="underline text-[#4b2e83]">
+                      אתר החנות
+                    </a>
+                    {s.terms_url && (
+                      <>
+                        {" "}•{" "}
+                        <a href={s.terms_url} target="_blank" rel="noopener noreferrer" className="underline text-[#4b2e83]">
+                          קישור לתקנון
+                        </a>
+                      </>
+                    )}
+                  </p>
+                  <p className="text-sm text-[#382759]">{s.benefit_details}</p>
+                  {s.status === "pending" && (
+                    <div className="flex flex-wrap items-center gap-2">
+                      <input
+                        value={replyDrafts[s.id] ?? ""}
+                        onChange={(e) => setReplyDrafts((p) => ({ ...p, [s.id]: e.target.value }))}
+                        placeholder="הערה למשתמש (אופציונלי)..."
+                        className="flex-1 min-w-[200px] rounded-xl border border-[#dfd2fb] bg-[#fbf9ff] px-3 py-2 text-xs"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => void handleReviewSuggestion(s, "approved")}
+                        className="rounded-full bg-emerald-100 px-4 py-2 text-xs font-bold text-emerald-900"
+                      >
+                        אישור הצעה
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => void handleReviewSuggestion(s, "rejected")}
+                        className="rounded-full bg-rose-100 px-4 py-2 text-xs font-bold text-rose-900"
+                      >
+                        דחייה
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ))
+            )}
           </div>
         )}
 

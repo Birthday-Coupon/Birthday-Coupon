@@ -59,10 +59,18 @@ function StoresDirectoryContent() {
             כברירת מחדל מוצגות חנויות שעברו את שער החוקיות (מותר / מותנה). ניתן להציג גם חנויות מידעניות בלבד.
           </p>
         </div>
-        <Link href="/benefits/new" className="clay-btn-butter inline-flex items-center gap-2 px-5 py-2.5 text-sm font-extrabold">
-          <Gift className="h-4 w-4" aria-hidden="true" />
-          פרסם הטבה שלך
-        </Link>
+        <div className="flex flex-wrap gap-2">
+          <Link
+            href="/suggest-store"
+            className="rounded-full border border-[#dfd2fb] bg-white px-4 py-2.5 text-sm font-bold text-[#4b2e83] hover:bg-[#f3ecff]"
+          >
+            + בקש הוספת חנות
+          </Link>
+          <Link href="/benefits/new" className="clay-btn-butter inline-flex items-center gap-2 px-5 py-2.5 text-sm font-extrabold">
+            <Gift className="h-4 w-4" aria-hidden="true" />
+            פרסם הטבה שלך
+          </Link>
+        </div>
       </div>
 
       {/* Filters Panel */}

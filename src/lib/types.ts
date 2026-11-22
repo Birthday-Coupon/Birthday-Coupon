@@ -258,3 +258,30 @@ export interface SystemBanner {
   is_active: boolean;
   created_at: string;
 }
+
+export interface ContactMessage {
+  id: string;
+  user_id: string | null;
+  sender_name: string;
+  category: "general" | "bug" | "account" | "safety" | "other";
+  subject: string;
+  message: string;
+  status: "open" | "in_progress" | "resolved";
+  admin_reply: string | null;
+  created_at: string;
+  resolved_at: string | null;
+}
+
+export interface StoreSuggestion {
+  id: string;
+  user_id: string | null;
+  submitter_name: string;
+  store_name: string;
+  website_url: string;
+  benefit_details: string;
+  terms_url: string | null;
+  status: "pending" | "approved" | "rejected";
+  admin_note: string | null;
+  created_at: string;
+  reviewed_at: string | null;
+}

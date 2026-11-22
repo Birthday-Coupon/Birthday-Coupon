@@ -33,8 +33,9 @@ export function Navbar() {
     { href: "/", label: he.nav.home },
     { href: "/stores", label: he.nav.stores },
     { href: "/benefits/new", label: he.nav.publish },
+    { href: "/suggest-store", label: "הצעת חנות" },
+    { href: "/contact", label: "צור קשר" },
     { href: "/safety", label: he.nav.safety },
-    { href: "/legality", label: he.nav.legality },
   ];
 
   return (

@@ -38,6 +38,16 @@ export function Footer() {
                 </Link>
               </li>
               <li>
+                <Link href="/suggest-store" className="hover:text-[#4b2e83] hover:underline">
+                  בקשה להוספת חנות
+                </Link>
+              </li>
+              <li>
+                <Link href="/contact" className="hover:text-[#4b2e83] hover:underline">
+                  פניות וצור קשר עם ההנהלה
+                </Link>
+              </li>
+              <li>
                 <Link href="/safety" className="hover:text-[#4b2e83] hover:underline">
                   בטיחות בעסקה
                 </Link>
