@@ -769,14 +769,15 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     }
 
     if (mode === "supabase") {
-      const res = await fetch(`/api/requests/${requestId}/transition`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ toStatus, note }),
+      const supabase = createSupabaseBrowserClient();
+      if (!supabase) return { ok: false, error: "חיבור Supabase אינו זמין." };
+      const { error } = await supabase.rpc("transition_purchase_request", {
+        p_request_id: requestId,
+        p_to_status: toStatus,
+        p_note: note ?? null,
       });
-      const json = (await res.json()) as { ok?: boolean; error?: string };
-      if (!res.ok || !json.ok) {
-        return { ok: false, error: json.error ?? "הפעולה נכשלה בשרת." };
+      if (error) {
+        return { ok: false, error: error.message };
       }
     }
 
@@ -971,11 +972,24 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
       status: "open",
       created_at: new Date().toISOString(),
     };
-    await fetch("/api/takedown", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(item),
-    }).catch(() => {});
+    if (mode === "supabase") {
+      const supabase = createSupabaseBrowserClient();
+      await supabase?.from("store_takedown_requests").insert({
+        store_id: item.store_id,
+        store_name_submitted: item.store_name_submitted,
+        contact_name: item.contact_name,
+        contact_email: item.contact_email,
+        contact_role: item.contact_role,
+        request_type: item.request_type,
+        details: item.details,
+      });
+    } else {
+      await fetch("/api/takedown", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(item),
+      }).catch(() => {});
+    }
 
     setState((prev) => ({
       ...prev,
