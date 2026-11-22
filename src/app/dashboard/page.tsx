@@ -11,6 +11,7 @@ import {
   EyeOff,
   Gift,
   Inbox,
+  Pencil,
   Send,
   Settings,
   Trash2,
@@ -40,6 +41,7 @@ export default function DashboardPage() {
     stores,
     waitlistStoreIds,
     updateBenefitStatus,
+    updateBenefitDetails,
     toggleWaitlist,
     markNotificationRead,
     updateBirthDate,
@@ -47,6 +49,11 @@ export default function DashboardPage() {
   } = useAppData();
 
   const [tab, setTab] = useState<TabKey>("incoming");
+  const [editingBenefitId, setEditingBenefitId] = useState<string | null>(null);
+  const [editStartDate, setEditStartDate] = useState("");
+  const [editEndDate, setEditEndDate] = useState("");
+  const [editNotes, setEditNotes] = useState("");
+  const [savingBenefitEdit, setSavingBenefitEdit] = useState(false);
   const [birthDateInput, setBirthDateInput] = useState(currentUserBirthDate ?? "");
   const [savingBirthDate, setSavingBirthDate] = useState(false);
   const [notifPermission, setNotifPermission] = useState<BrowserNotificationPermission>("default");
@@ -292,50 +299,159 @@ export default function DashboardPage() {
                 </Link>
               </div>
             ) : (
-              myBenefits.map((b) => (
-                <div key={b.id} className="clay-card flex flex-col justify-between gap-4 p-5 sm:flex-row sm:items-center">
-                  <div>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="font-bold text-[#241938]">{b.store_name_he}</span>
-                      <BenefitStatusBadge status={b.status} />
+              myBenefits.map((b) => {
+                const canEdit = b.status !== "redeemed" && b.status !== "removed";
+                const isEditing = editingBenefitId === b.id;
+                return (
+                  <div key={b.id} className="clay-card p-5 space-y-4">
+                    <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+                      <div>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="font-bold text-[#241938]">{b.store_name_he}</span>
+                          <BenefitStatusBadge status={b.status} />
+                        </div>
+                        <p className="mt-1 text-xs font-semibold text-[#8a5a00]">{b.discount_value}</p>
+                        <p className="mt-0.5 text-xs text-[#66548a]">
+                          חלון זכאות: {b.window_start_date} עד {b.window_end_date}
+                        </p>
+                        {b.notes && (
+                          <p className="mt-1 text-xs text-[#4e3f69]">{b.notes}</p>
+                        )}
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {canEdit && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setEditingBenefitId(isEditing ? null : b.id);
+                              setEditStartDate(b.window_start_date);
+                              setEditEndDate(b.window_end_date);
+                              setEditNotes(b.notes ?? "");
+                              setError(null);
+                              setFeedback(null);
+                            }}
+                            className="inline-flex items-center gap-1 rounded-full bg-[#efe7fe] px-3.5 py-1.5 text-xs font-bold text-[#4b2e83] hover:bg-[#e1d1fc]"
+                          >
+                            <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
+                            {isEditing ? "סגור עריכה" : "עריכת פרטים ותאריכים"}
+                          </button>
+                        )}
+                        {canOwnerHideBenefit(b.status) && (
+                          <button
+                            type="button"
+                            onClick={() => void updateBenefitStatus(b.id, "hidden")}
+                            className="inline-flex items-center gap-1 rounded-full border border-[#dfd2fb] px-3.5 py-1.5 text-xs font-bold text-[#4b2e83] hover:bg-[#f3ecff]"
+                          >
+                            <EyeOff className="h-3.5 w-3.5" aria-hidden="true" />
+                            הסתר זמנית
+                          </button>
+                        )}
+                        {b.status === "hidden" && (
+                          <button
+                            type="button"
+                            onClick={() => void updateBenefitStatus(b.id, "active")}
+                            className="rounded-full bg-[#efe7fe] px-3.5 py-1.5 text-xs font-bold text-[#4b2e83]"
+                          >
+                            הפעל מחדש
+                          </button>
+                        )}
+                        {b.status === "active" && (
+                          <button
+                            type="button"
+                            onClick={() => void updateBenefitStatus(b.id, "redeemed")}
+                            className="rounded-full bg-[#fef6d8] px-3.5 py-1.5 text-xs font-bold text-[#4a3204]"
+                          >
+                            סמן כמומש מחוץ לאתר
+                          </button>
+                        )}
+                      </div>
                     </div>
-                    <p className="mt-1 text-xs font-semibold text-[#8a5a00]">{b.discount_value}</p>
-                    <p className="mt-0.5 text-xs text-[#66548a]">
-                      חלון זכאות: {b.window_start_date} עד {b.window_end_date}
-                    </p>
+
+                    {isEditing && (
+                      <form
+                        onSubmit={async (e) => {
+                          e.preventDefault();
+                          setError(null);
+                          setFeedback(null);
+                          setSavingBenefitEdit(true);
+                          try {
+                            const res = await updateBenefitDetails({
+                              benefitId: b.id,
+                              windowStartDate: editStartDate,
+                              windowEndDate: editEndDate,
+                              notes: editNotes,
+                            });
+                            if (!res.ok) {
+                              setError(res.error ?? "לא ניתן לעדכן את ההטבה.");
+                            } else {
+                              setFeedback("פרטי ההטבה והתאריכים עודכנו בהצלחה!");
+                              setEditingBenefitId(null);
+                            }
+                          } finally {
+                            setSavingBenefitEdit(false);
+                          }
+                        }}
+                        className="space-y-3 border-t border-[#efe7fe] pt-4"
+                      >
+                        <div className="grid gap-3 sm:grid-cols-2">
+                          <div>
+                            <label className="block text-xs font-bold text-[#4b2e83] mb-1">
+                              תאריך תחילת זכאות *
+                            </label>
+                            <input
+                              type="date"
+                              required
+                              value={editStartDate}
+                              onChange={(e) => setEditStartDate(e.target.value)}
+                              className="w-full rounded-xl border border-[#dfd2fb] bg-[#fbf9ff] px-3 py-2 text-sm"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-bold text-[#4b2e83] mb-1">
+                              תאריך סיום זכאות *
+                            </label>
+                            <input
+                              type="date"
+                              required
+                              value={editEndDate}
+                              onChange={(e) => setEditEndDate(e.target.value)}
+                              className="w-full rounded-xl border border-[#dfd2fb] bg-[#fbf9ff] px-3 py-2 text-sm"
+                            />
+                          </div>
+                        </div>
+                        <div>
+                          <label className="block text-xs font-bold text-[#4b2e83] mb-1">
+                            הערות לקונה
+                          </label>
+                          <textarea
+                            rows={2}
+                            maxLength={500}
+                            value={editNotes}
+                            onChange={(e) => setEditNotes(e.target.value)}
+                            className="w-full rounded-xl border border-[#dfd2fb] bg-[#fbf9ff] px-3 py-2 text-sm"
+                          />
+                        </div>
+                        <div className="flex gap-2">
+                          <button
+                            type="submit"
+                            disabled={savingBenefitEdit}
+                            className="clay-btn-primary px-5 py-2 text-xs font-bold disabled:opacity-60"
+                          >
+                            {savingBenefitEdit ? "שומר..." : "שמירת שינויים"}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setEditingBenefitId(null)}
+                            className="rounded-full px-4 py-2 text-xs font-semibold text-[#5a4c73]"
+                          >
+                            ביטול
+                          </button>
+                        </div>
+                      </form>
+                    )}
                   </div>
-                  <div className="flex flex-wrap gap-2">
-                    {canOwnerHideBenefit(b.status) && (
-                      <button
-                        type="button"
-                        onClick={() => void updateBenefitStatus(b.id, "hidden")}
-                        className="inline-flex items-center gap-1 rounded-full border border-[#dfd2fb] px-3.5 py-1.5 text-xs font-bold text-[#4b2e83] hover:bg-[#f3ecff]"
-                      >
-                        <EyeOff className="h-3.5 w-3.5" aria-hidden="true" />
-                        הסתר זמנית
-                      </button>
-                    )}
-                    {b.status === "hidden" && (
-                      <button
-                        type="button"
-                        onClick={() => void updateBenefitStatus(b.id, "active")}
-                        className="rounded-full bg-[#efe7fe] px-3.5 py-1.5 text-xs font-bold text-[#4b2e83]"
-                      >
-                        הפעל מחדש
-                      </button>
-                    )}
-                    {b.status === "active" && (
-                      <button
-                        type="button"
-                        onClick={() => void updateBenefitStatus(b.id, "redeemed")}
-                        className="rounded-full bg-[#fef6d8] px-3.5 py-1.5 text-xs font-bold text-[#4a3204]"
-                      >
-                        סמן כמומש מחוץ לאתר
-                      </button>
-                    )}
-                  </div>
-                </div>
-              ))
+                );
+              })
             )}
           </div>
         )}

@@ -106,6 +106,12 @@ interface AppContextValue {
     notes: string;
   }) => Promise<{ ok: boolean; error?: string; benefitId?: string }>;
   updateBenefitStatus: (benefitId: string, status: BenefitStatus) => Promise<{ ok: boolean; error?: string }>;
+  updateBenefitDetails: (input: {
+    benefitId: string;
+    windowStartDate: string;
+    windowEndDate: string;
+    notes: string;
+  }) => Promise<{ ok: boolean; error?: string }>;
   toggleWaitlist: (storeId: string) => Promise<{ ok: boolean; joined: boolean }>;
   // Requests & Chat
   createPurchaseRequest: (input: {
@@ -224,7 +230,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
         ] = await Promise.all([
           supabase.auth.getUser(),
           supabase.from("stores").select("*, categories(slug, name_he)").order("suitability_rank", { ascending: true }),
-          supabase.from("user_benefits").select("*, users(display_name, birth_month, is_verified_member), stores(slug, name_he, discount_value)").eq("status", "active"),
+          supabase.from("user_benefits").select("*, users(display_name, birth_month, is_verified_member), stores(slug, name_he, discount_value)").is("deleted_at", null),
           supabase.from("system_banners").select("*").eq("is_active", true).order("created_at", { ascending: false }),
         ]);
 
@@ -814,6 +820,59 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     return { ok: true };
   };
 
+  const updateBenefitDetails: AppContextValue["updateBenefitDetails"] = async (input) => {
+    const target = state.benefits.find((b) => b.id === input.benefitId);
+    if (!target || !currentUser) return { ok: false, error: "ההטבה לא נמצאה." };
+    if (target.owner_id !== currentUser.id && !currentUser.roles.includes("admin")) {
+      return { ok: false, error: "אין הרשאה לערוך הטבה זו." };
+    }
+    if (target.status === "redeemed" || target.status === "removed") {
+      return { ok: false, error: "לא ניתן לערוך הטבה שמומשה או הוסרה." };
+    }
+    if (!input.windowStartDate || !input.windowEndDate || input.windowEndDate < input.windowStartDate) {
+      return { ok: false, error: "תאריך הסיום חייב להיות מאוחר או שווה לתאריך ההתחלה." };
+    }
+
+    const cleanNotes = sanitizePlainText(input.notes, 500);
+    const todayIl = getTodayInIsrael();
+    const nextStatus: BenefitStatus =
+      target.status === "expired" && input.windowEndDate >= todayIl ? "active" : target.status;
+
+    if (mode === "supabase") {
+      const supabase = createSupabaseBrowserClient();
+      const { error } =
+        (await supabase
+          ?.from("user_benefits")
+          .update({
+            window_type: "custom_range",
+            window_start_date: input.windowStartDate,
+            window_end_date: input.windowEndDate,
+            notes: cleanNotes || null,
+            status: nextStatus,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", input.benefitId)) ?? {};
+      if (error) return { ok: false, error: error.message };
+    }
+
+    setState((prev) => ({
+      ...prev,
+      benefits: prev.benefits.map((b) =>
+        b.id === input.benefitId
+          ? {
+              ...b,
+              window_type: "custom_range",
+              window_start_date: input.windowStartDate,
+              window_end_date: input.windowEndDate,
+              notes: cleanNotes || null,
+              status: nextStatus,
+            }
+          : b
+      ),
+    }));
+    return { ok: true };
+  };
+
   const toggleWaitlist: AppContextValue["toggleWaitlist"] = async (storeId) => {
     const exists = state.waitlistStoreIds.includes(storeId);
     if (mode === "supabase" && currentUser) {
@@ -1384,6 +1443,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
         deleteAccount,
         publishBenefit,
         updateBenefitStatus,
+        updateBenefitDetails,
         toggleWaitlist,
         createPurchaseRequest,
         transitionRequest,
