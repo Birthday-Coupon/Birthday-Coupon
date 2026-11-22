@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import {
+  BarChart3,
   CheckCircle2,
   ClipboardList,
   LifeBuoy,
@@ -17,7 +18,13 @@ import { LegalityBadge } from "@/components/Badges";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import type { ContactMessage, LegalityStatus, StoreSuggestion } from "@/lib/types";
 
-type AdminTab = "stores" | "contacts" | "suggestions" | "disputes" | "takedowns" | "banner" | "logs";
+type AdminTab = "analytics" | "stores" | "contacts" | "suggestions" | "disputes" | "takedowns" | "banner" | "logs";
+
+interface PageViewRow {
+  path: string;
+  session_id: string;
+  created_at: string;
+}
 
 export default function AdminPage() {
   const {
@@ -32,7 +39,8 @@ export default function AdminPage() {
     setSystemBanner,
   } = useAppData();
 
-  const [tab, setTab] = useState<AdminTab>("stores");
+  const [tab, setTab] = useState<AdminTab>("analytics");
+  const [pageViews, setPageViews] = useState<PageViewRow[]>([]);
   const [contactMessages, setContactMessages] = useState<ContactMessage[]>([]);
   const [storeSuggestions, setStoreSuggestions] = useState<StoreSuggestion[]>([]);
   const [replyDrafts, setReplyDrafts] = useState<Record<string, string>>({});
@@ -56,9 +64,15 @@ export default function AdminPage() {
     void Promise.all([
       supabase.from("contact_messages").select("*").order("created_at", { ascending: false }),
       supabase.from("store_suggestions").select("*").order("created_at", { ascending: false }),
-    ]).then(([cRes, sRes]) => {
+      supabase
+        .from("page_views")
+        .select("path, session_id, created_at")
+        .order("created_at", { ascending: false })
+        .limit(5000),
+    ]).then(([cRes, sRes, pvRes]) => {
       if (cRes.data) setContactMessages(cRes.data as ContactMessage[]);
       if (sRes.data) setStoreSuggestions(sRes.data as StoreSuggestion[]);
+      if (pvRes.data) setPageViews(pvRes.data as PageViewRow[]);
     });
   }, [mode, isStaff]);
 
@@ -175,6 +189,7 @@ export default function AdminPage() {
       {/* Tabs */}
       <div className="mt-6 flex flex-wrap gap-2">
         {[
+          { key: "analytics" as const, label: `סטטיסטיקות וכניסות (${pageViews.length})`, icon: BarChart3 },
           { key: "stores" as const, label: `תור בדיקת חנויות (${stores.length})`, icon: Scale },
           { key: "contacts" as const, label: `פניות משתמשים (${contactMessages.length})`, icon: LifeBuoy },
           { key: "suggestions" as const, label: `הצעות לחנויות (${storeSuggestions.length})`, icon: PlusCircle },
@@ -209,6 +224,78 @@ export default function AdminPage() {
       )}
 
       <div className="mt-6">
+        {tab === "analytics" && (() => {
+          const nowMs = Date.now();
+          const dayAgo = nowMs - 86_400_000;
+          const weekAgo = nowMs - 7 * 86_400_000;
+          const monthAgo = nowMs - 30 * 86_400_000;
+
+          const viewsToday = pageViews.filter((v) => new Date(v.created_at).getTime() >= dayAgo);
+          const viewsWeek = pageViews.filter((v) => new Date(v.created_at).getTime() >= weekAgo);
+          const viewsMonth = pageViews.filter((v) => new Date(v.created_at).getTime() >= monthAgo);
+          const uniqueMonth = new Set(viewsMonth.map((v) => v.session_id)).size;
+
+          const pathCounts = new Map<string, number>();
+          for (const v of viewsMonth) {
+            pathCounts.set(v.path, (pathCounts.get(v.path) ?? 0) + 1);
+          }
+          const topPaths = [...pathCounts.entries()]
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 10);
+          const maxCount = topPaths[0]?.[1] ?? 1;
+
+          return (
+            <div className="space-y-6">
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                <div className="clay-card p-5">
+                  <p className="text-xs font-bold text-[#66548a]">צפיות ב-24 שעות אחרונות</p>
+                  <p className="mt-2 text-3xl font-extrabold text-[#4b2e83]">{viewsToday.length}</p>
+                </div>
+                <div className="clay-card p-5">
+                  <p className="text-xs font-bold text-[#66548a]">צפיות ב-7 ימים אחרונים</p>
+                  <p className="mt-2 text-3xl font-extrabold text-[#4b2e83]">{viewsWeek.length}</p>
+                </div>
+                <div className="clay-card p-5">
+                  <p className="text-xs font-bold text-[#66548a]">צפיות ב-30 ימים אחרונים</p>
+                  <p className="mt-2 text-3xl font-extrabold text-[#4b2e83]">{viewsMonth.length}</p>
+                </div>
+                <div className="clay-card p-5">
+                  <p className="text-xs font-bold text-[#66548a]">ביקורים ייחודיים (30 יום)</p>
+                  <p className="mt-2 text-3xl font-extrabold text-[#8a5a00]">{uniqueMonth}</p>
+                </div>
+              </div>
+
+              <div className="clay-card p-6">
+                <h2 className="text-base font-extrabold text-[#241938]">
+                  העמודים והחנויות הכי נצפים (30 ימים אחרונים)
+                </h2>
+                {topPaths.length === 0 ? (
+                  <p className="mt-4 text-sm text-[#5a4c73]">
+                    עדיין אין נתוני צפיות — הנתונים יתחילו להצטבר אוטומטית מהביקור הבא באתר (עמוד הניהול עצמו אינו נספר).
+                  </p>
+                ) : (
+                  <ul className="mt-4 space-y-3">
+                    {topPaths.map(([p, count]) => (
+                      <li key={p} className="space-y-1">
+                        <div className="flex items-center justify-between text-xs font-bold">
+                          <span dir="ltr" className="text-[#241938]">{p}</span>
+                          <span className="text-[#4b2e83]">{count} צפיות</span>
+                        </div>
+                        <div className="h-2.5 w-full overflow-hidden rounded-full bg-[#efe7fe]">
+                          <div
+                            className="h-full rounded-full bg-gradient-to-l from-[#4b2e83] to-[#f6d469]"
+                            style={{ width: `${Math.max(6, Math.round((count / maxCount) * 100))}%` }}
+                          />
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </div>
+          );
+        })()}
+
         {tab === "stores" && (
           <div className="space-y-4">
             {stores.map((s) => (

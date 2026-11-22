@@ -5,6 +5,7 @@ import { AppDataProvider } from "@/lib/data/app-context";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import { SystemBannerBar } from "@/components/SystemBannerBar";
+import { PageViewTracker } from "@/components/PageViewTracker";
 
 const rubik = Rubik({
   subsets: ["hebrew", "latin"],
@@ -34,6 +35,7 @@ export default function RootLayout({
           דלג לתוכן הראשי
         </a>
         <AppDataProvider>
+          <PageViewTracker />
           <SystemBannerBar />
           <Navbar />
           <main id="main-content" className="flex-1">
