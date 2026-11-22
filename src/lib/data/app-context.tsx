@@ -1232,20 +1232,31 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
 
     if (mode === "supabase") {
       const supabase = createSupabaseBrowserClient();
-      const { error } =
-        (await supabase?.from("messages").insert({
-          request_id: requestId,
-          sender_id: currentUser.id,
-          body: clean,
-          contained_contact_warning: guard.hasContactInfo,
-        })) ?? {};
+      const { data, error } =
+        (await supabase
+          ?.from("messages")
+          .insert({
+            request_id: requestId,
+            sender_id: currentUser.id,
+            body: clean,
+            contained_contact_warning: guard.hasContactInfo,
+          })
+          .select("id, created_at")
+          .maybeSingle()) ?? {};
       if (error) return { ok: false, error: error.message };
+      if (data?.id) {
+        msg.id = String(data.id);
+        if (data.created_at) msg.created_at = String(data.created_at);
+      }
     }
 
-    setState((prev) => ({
-      ...prev,
-      messages: [...prev.messages, msg],
-    }));
+    setState((prev) => {
+      if (prev.messages.some((m) => m.id === msg.id)) return prev;
+      return {
+        ...prev,
+        messages: [...prev.messages, msg],
+      };
+    });
 
     return { ok: true, warning: guard.warningMessage };
   };
