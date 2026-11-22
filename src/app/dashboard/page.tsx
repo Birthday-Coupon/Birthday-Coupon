@@ -187,7 +187,7 @@ export default function DashboardPage() {
                       מאת: {req.buyer_display_name} • נשלחה: {req.created_at.slice(0, 10)}
                     </p>
                   </div>
-                  <Link href={`/requests/${req.id}`} className="clay-btn-primary px-5 py-2 text-xs font-bold text-center">
+                  <Link href={`/requests/view?id=${req.id}`} className="clay-btn-primary px-5 py-2 text-xs font-bold text-center">
                     צפייה וטיפול בבקשה
                   </Link>
                 </div>
@@ -218,7 +218,7 @@ export default function DashboardPage() {
                       בעל ההטבה: {req.owner_display_name} • נשלחה: {req.created_at.slice(0, 10)}
                     </p>
                   </div>
-                  <Link href={`/requests/${req.id}`} className="clay-btn-primary px-5 py-2 text-xs font-bold text-center">
+                  <Link href={`/requests/view?id=${req.id}`} className="clay-btn-primary px-5 py-2 text-xs font-bold text-center">
                     לעמוד הבקשה והצ׳אט
                   </Link>
                 </div>

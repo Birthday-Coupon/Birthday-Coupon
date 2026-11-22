@@ -249,7 +249,7 @@ export default function AdminPage() {
                   </p>
                   <div className="flex flex-wrap gap-2">
                     <Link
-                      href={`/requests/${d.request_id}`}
+                      href={`/requests/view?id=${d.request_id}`}
                       className="rounded-full border border-[#dfd2fb] px-4 py-1.5 text-xs font-bold text-[#4b2e83]"
                     >
                       צפייה ב-request_events ובצ׳אט

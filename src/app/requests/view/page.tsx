@@ -1,7 +1,8 @@
 "use client";
 
-import React, { use, useState } from "react";
+import React, { Suspense, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import {
   AlertTriangle,
   ArrowRight,
@@ -21,12 +22,9 @@ import { RequestStatusBadge } from "@/components/Badges";
 import { isRequestChatOpen } from "@/lib/domain/state-machine";
 import { he } from "@/lib/i18n";
 
-export default function RequestDetailPage({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
-  const { id } = use(params);
+function RequestDetailInner() {
+  const searchParams = useSearchParams();
+  const id = searchParams.get("id") ?? "";
   const {
     currentUser,
     requests,
@@ -141,7 +139,6 @@ export default function RequestDetailPage({
         חזרה לאזור האישי
       </Link>
 
-      {/* Request Summary Card */}
       <section className="clay-card mt-4 p-6">
         <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
           <div>
@@ -169,7 +166,6 @@ export default function RequestDetailPage({
           </a>
         </div>
 
-        {/* Visual Stepper */}
         <ol className="mt-6 grid grid-cols-2 gap-2 sm:grid-cols-4" aria-label="שלבי הבקשה">
           {steps.map((s, idx) => {
             const done = idx <= stepIndex && !["declined", "cancelled", "expired"].includes(req.status);
@@ -177,9 +173,7 @@ export default function RequestDetailPage({
               <li
                 key={s.key}
                 className={`rounded-2xl px-3 py-2.5 text-center text-xs font-bold ${
-                  done
-                    ? "bg-[#e7dbfd] text-[#3b226b]"
-                    : "bg-[#f7f3ff] text-[#8a7ba8]"
+                  done ? "bg-[#e7dbfd] text-[#3b226b]" : "bg-[#f7f3ff] text-[#8a7ba8]"
                 }`}
               >
                 {idx + 1}. {s.label}
@@ -195,7 +189,6 @@ export default function RequestDetailPage({
           </div>
         )}
 
-        {/* Action Buttons Bar (Strictly State-Machine Gated) */}
         <div className="mt-6 border-t border-[#efe7fe] pt-5">
           {actionError && (
             <div role="alert" className="mb-3 flex items-center gap-2 rounded-2xl bg-rose-100 p-3 text-xs font-bold text-rose-900">
@@ -205,7 +198,6 @@ export default function RequestDetailPage({
           )}
 
           <div className="flex flex-wrap items-center gap-2.5">
-            {/* Owner actions on pending / info_requested */}
             {isOwner && (req.status === "pending" || req.status === "info_requested") && (
               <>
                 <button
@@ -235,7 +227,6 @@ export default function RequestDetailPage({
               </>
             )}
 
-            {/* Owner action on accepted -> mark purchased */}
             {isOwner && req.status === "accepted" && (
               <button
                 type="button"
@@ -247,7 +238,6 @@ export default function RequestDetailPage({
               </button>
             )}
 
-            {/* Buyer action on purchased -> confirm receipt (NEVER auto-completed!) */}
             {isBuyer && req.status === "purchased" && (
               <button
                 type="button"
@@ -259,7 +249,6 @@ export default function RequestDetailPage({
               </button>
             )}
 
-            {/* Free cancellation up to accepted inclusive (Section 5.3.3) */}
             {(isBuyer || isOwner) &&
               (req.status === "pending" || req.status === "info_requested" || req.status === "accepted") && (
                 <button
@@ -271,7 +260,6 @@ export default function RequestDetailPage({
                 </button>
               )}
 
-            {/* After purchased -> NO cancellation, only Dispute! */}
             {(isBuyer || isOwner) && req.status === "purchased" && (
               <button
                 type="button"
@@ -309,9 +297,7 @@ export default function RequestDetailPage({
         </div>
       </section>
 
-      {/* GRID: IN-REQUEST CHAT + REQUEST EVENTS TIMELINE */}
       <div className="mt-6 grid gap-6 lg:grid-cols-12">
-        {/* Chat Column */}
         <section aria-label="צ׳אט פנימי לבקשה" className="clay-card p-5 lg:col-span-7 flex flex-col">
           <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#efe7fe] pb-3">
             <h2 className="flex items-center gap-2 text-base font-extrabold text-[#241938]">
@@ -323,9 +309,7 @@ export default function RequestDetailPage({
                 type="button"
                 onClick={() => void toggleMutualPhoneConsent(req.id)}
                 className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-bold ${
-                  bothConsentedPhone
-                    ? "bg-emerald-100 text-emerald-900"
-                    : "bg-[#f3ecff] text-[#4b2e83]"
+                  bothConsentedPhone ? "bg-emerald-100 text-emerald-900" : "bg-[#f3ecff] text-[#4b2e83]"
                 }`}
               >
                 <Phone className="h-3.5 w-3.5" aria-hidden="true" />
@@ -340,9 +324,7 @@ export default function RequestDetailPage({
             <div className="flex flex-1 flex-col items-center justify-center py-12 text-center">
               <Lock className="h-8 w-8 text-[#9c82d6]" aria-hidden="true" />
               <p className="mt-3 text-sm font-bold text-[#241938]">{chatStatus.reason}</p>
-              <p className="mt-1 text-xs text-[#66548a]">
-                כל פרטי הקשר נשארים חסויים עד לפתיחת הצ׳אט.
-              </p>
+              <p className="mt-1 text-xs text-[#66548a]">כל פרטי הקשר נשארים חסויים עד לפתיחת הצ׳אט.</p>
             </div>
           ) : (
             <>
@@ -359,15 +341,10 @@ export default function RequestDetailPage({
                   reqMessages.map((m) => {
                     const mine = m.sender_id === currentUser.id;
                     return (
-                      <div
-                        key={m.id}
-                        className={`flex flex-col ${mine ? "items-start" : "items-end"}`}
-                      >
+                      <div key={m.id} className={`flex flex-col ${mine ? "items-start" : "items-end"}`}>
                         <div
                           className={`max-w-[85%] rounded-2xl px-4 py-2.5 text-sm ${
-                            mine
-                              ? "bg-[#4b2e83] text-white"
-                              : "bg-[#f3ecff] text-[#241938]"
+                            mine ? "bg-[#4b2e83] text-white" : "bg-[#f3ecff] text-[#241938]"
                           }`}
                         >
                           <div className="flex items-center justify-between gap-3 text-[10px] opacity-80 mb-1">
@@ -421,7 +398,6 @@ export default function RequestDetailPage({
           )}
         </section>
 
-        {/* Audit Events Timeline */}
         <section aria-label="היסטוריית סטטוסים" className="clay-card p-5 lg:col-span-5">
           <h2 className="flex items-center gap-2 text-base font-extrabold text-[#241938] border-b border-[#efe7fe] pb-3">
             <Clock className="h-5 w-5 text-[#6c46c1]" aria-hidden="true" />
@@ -431,9 +407,7 @@ export default function RequestDetailPage({
             {reqEvents.map((ev) => (
               <li key={ev.id} className="rounded-2xl bg-[#f7f3ff] p-3 text-xs">
                 <div className="flex items-center justify-between gap-2">
-                  <span className="font-bold text-[#4b2e83]">
-                    {he.requestStatus[ev.to_status]}
-                  </span>
+                  <span className="font-bold text-[#4b2e83]">{he.requestStatus[ev.to_status]}</span>
                   <span className="text-[11px] text-[#66548a]">{ev.created_at.slice(0, 16).replace("T", " ")}</span>
                 </div>
                 <p className="mt-1 text-[#382759]">{ev.note ?? "עדכון סטטוס"}</p>
@@ -444,5 +418,13 @@ export default function RequestDetailPage({
         </section>
       </div>
     </div>
+  );
+}
+
+export default function RequestViewPage() {
+  return (
+    <Suspense fallback={<div className="p-10 text-center text-sm text-[#5a4c73]">טוען בקשה...</div>}>
+      <RequestDetailInner />
+    </Suspense>
   );
 }

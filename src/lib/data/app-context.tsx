@@ -227,23 +227,78 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
         if (cancelled) return;
 
         let currentUser: PublicUser | null = null;
+        let liveRequests: PurchaseRequest[] = [];
+        let liveEvents: RequestEvent[] = [];
+        let liveMessages: ChatMessage[] = [];
+        let liveNotifications: AppNotification[] = [];
+        let liveWaitlistIds: string[] = [];
+
         if (authData?.user) {
-          const [{ data: profile }, { data: rolesData }] = await Promise.all([
+          const [
+            { data: profile },
+            { data: rolesData },
+            { data: reqsData },
+            { data: notifsData },
+            { data: waitData },
+          ] = await Promise.all([
             supabase.from("users").select("*").eq("id", authData.user.id).single(),
             supabase.from("user_roles").select("role").eq("user_id", authData.user.id),
+            supabase
+              .from("purchase_requests")
+              .select("*, stores(slug, name_he)")
+              .or(`buyer_id.eq.${authData.user.id},benefit_owner_id.eq.${authData.user.id}`)
+              .order("created_at", { ascending: false }),
+            supabase
+              .from("notifications")
+              .select("*")
+              .eq("user_id", authData.user.id)
+              .order("created_at", { ascending: false }),
+            supabase.from("waitlist").select("store_id").eq("user_id", authData.user.id),
           ]);
+
           if (profile) {
             currentUser = {
               ...profile,
               roles: (rolesData ?? []).map((r: { role: string }) => r.role) as PublicUser["roles"],
             };
           }
+
+          if (reqsData && reqsData.length > 0) {
+            liveRequests = reqsData.map((r: Record<string, unknown>) => ({
+              ...(r as unknown as PurchaseRequest),
+              store_slug: (r.stores as { slug?: string } | null)?.slug ?? "",
+              store_name_he: (r.stores as { name_he?: string } | null)?.name_he ?? "",
+              buyer_display_name: r.buyer_id === authData.user?.id ? currentUser?.display_name ?? "אני" : "קונה",
+              owner_display_name: r.benefit_owner_id === authData.user?.id ? currentUser?.display_name ?? "אני" : "בעל הטבה",
+            }));
+            const reqIds = liveRequests.map((r) => r.id);
+            const [{ data: evData }, { data: msgData }] = await Promise.all([
+              supabase.from("request_events").select("*").in("request_id", reqIds).order("created_at", { ascending: true }),
+              supabase.from("messages").select("*").in("request_id", reqIds).order("created_at", { ascending: true }),
+            ]);
+            liveEvents = (evData ?? []).map((e: Record<string, unknown>) => ({
+              ...(e as unknown as RequestEvent),
+              actor_name: e.actor_id === authData.user?.id ? currentUser?.display_name ?? "אני" : "מערכת / צד שני",
+            }));
+            liveMessages = (msgData ?? []).map((m: Record<string, unknown>) => ({
+              ...(m as unknown as ChatMessage),
+              sender_name: m.sender_id === authData.user?.id ? currentUser?.display_name ?? "אני" : "צד שני",
+            }));
+          }
+
+          liveNotifications = (notifsData as AppNotification[] | null) ?? [];
+          liveWaitlistIds = (waitData ?? []).map((w: { store_id: string }) => w.store_id);
         }
 
         setState((prev) => ({
           ...prev,
           currentUserId: currentUser?.id ?? null,
           users: currentUser ? [currentUser] : [],
+          requests: liveRequests,
+          events: liveEvents,
+          messages: liveMessages,
+          notifications: liveNotifications,
+          waitlistStoreIds: liveWaitlistIds,
           stores:
             storesData && storesData.length > 0
               ? storesData.map((s: Record<string, unknown>) => ({
@@ -722,7 +777,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
       type: "request_new",
       title: `בקשה חדשה להטבה ב-${store.name_he}`,
       body: `${currentUser.display_name} שלח/ה בקשה עבור "${newReq.product_name}". יש להגיב תוך 72 שעות.`,
-      link: `/requests/${newReq.id}`,
+      link: `/requests/view?id=${newReq.id}`,
       read_at: null,
       created_at: now.toISOString(),
     };
@@ -869,7 +924,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
         type: `request_${toStatus}`,
         title: `עדכון בבקשה ב-${req.store_name_he}`,
         body: `סטטוס הבקשה עודכן ל-${toStatus}.`,
-        link: `/requests/${req.id}`,
+        link: `/requests/view?id=${req.id}`,
         read_at: null,
         created_at: now,
       };

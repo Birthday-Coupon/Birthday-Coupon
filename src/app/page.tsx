@@ -119,7 +119,7 @@ export default function HomePage() {
               <div className="overflow-hidden rounded-[2rem] border-2 border-white/60 bg-[#cbb1f5] shadow-[0_24px_48px_-16px_rgba(75,46,131,0.35)]">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
-                  src="/images/hero-3d.jpg"
+                  src={`${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/images/hero-3d.jpg`}
                   alt="שקית מתנה תלת-ממדית, קופסת מתנה ובלונים צהובים על רקע סגול פסטלי"
                   className="h-72 w-full object-cover object-center sm:h-80"
                 />

@@ -117,7 +117,7 @@ export function StoreDetailClient({ slug }: { slug: string }) {
       if (!res.ok) {
         setError(res.error ?? "לא ניתן לשלוח את הבקשה.");
       } else if (res.requestId) {
-        router.push(`/requests/${res.requestId}`);
+        router.push(`/requests/view?id=${res.requestId}`);
       }
     } finally {
       setSubmitting(false);

@@ -4,6 +4,10 @@ import { SEED_STORES } from "@/lib/data/seed-stores";
 import { evaluateStoreLegalityGate } from "@/lib/domain/legality-gate";
 import { StoreDetailClient } from "./StoreDetailClient";
 
+export function generateStaticParams() {
+  return SEED_STORES.map((store) => ({ slug: store.slug }));
+}
+
 export async function generateMetadata({
   params,
 }: {
