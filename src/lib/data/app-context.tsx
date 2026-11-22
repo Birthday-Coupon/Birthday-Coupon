@@ -112,6 +112,7 @@ interface AppContextValue {
     windowEndDate: string;
     notes: string;
   }) => Promise<{ ok: boolean; error?: string }>;
+  deleteBenefit: (benefitId: string) => Promise<{ ok: boolean; error?: string }>;
   toggleWaitlist: (storeId: string) => Promise<{ ok: boolean; joined: boolean }>;
   // Requests & Chat
   createPurchaseRequest: (input: {
@@ -924,6 +925,34 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     return { ok: true };
   };
 
+  const deleteBenefit: AppContextValue["deleteBenefit"] = async (benefitId) => {
+    const target = state.benefits.find((b) => b.id === benefitId);
+    if (!target || !currentUser) return { ok: false, error: "ההטבה לא נמצאה." };
+    if (target.owner_id !== currentUser.id && !currentUser.roles.includes("admin")) {
+      return { ok: false, error: "אין הרשאה למחוק הטבה זו." };
+    }
+    if (target.status === "reserved") {
+      return { ok: false, error: "לא ניתן למחוק הטבה בזמן שיש עליה בקשה מאושרת פעילה." };
+    }
+
+    const now = new Date().toISOString();
+    if (mode === "supabase") {
+      const supabase = createSupabaseBrowserClient();
+      const { error } =
+        (await supabase
+          ?.from("user_benefits")
+          .update({ status: "hidden", deleted_at: now, updated_at: now })
+          .eq("id", benefitId)) ?? {};
+      if (error) return { ok: false, error: error.message };
+    }
+
+    setState((prev) => ({
+      ...prev,
+      benefits: prev.benefits.filter((b) => b.id !== benefitId),
+    }));
+    return { ok: true };
+  };
+
   const toggleWaitlist: AppContextValue["toggleWaitlist"] = async (storeId) => {
     const exists = state.waitlistStoreIds.includes(storeId);
     if (mode === "supabase" && currentUser) {
@@ -1543,6 +1572,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
         publishBenefit,
         updateBenefitStatus,
         updateBenefitDetails,
+        deleteBenefit,
         toggleWaitlist,
         createPurchaseRequest,
         transitionRequest,

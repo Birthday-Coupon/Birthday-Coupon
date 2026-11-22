@@ -43,6 +43,7 @@ export default function DashboardPage() {
     waitlistStoreIds,
     updateBenefitStatus,
     updateBenefitDetails,
+    deleteBenefit,
     toggleWaitlist,
     markNotificationRead,
     updateBirthDate,
@@ -371,6 +372,25 @@ export default function DashboardPage() {
                             className="rounded-full bg-[#fef6d8] px-3.5 py-1.5 text-xs font-bold text-[#4a3204]"
                           >
                             סמן כמומש מחוץ לאתר
+                          </button>
+                        )}
+                        {b.status !== "reserved" && (
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              setError(null);
+                              setFeedback(null);
+                              const res = await deleteBenefit(b.id);
+                              if (!res.ok) {
+                                setError(res.error ?? "לא ניתן למחוק את ההטבה.");
+                              } else {
+                                setFeedback("ההטבה הוסרה בהצלחה.");
+                              }
+                            }}
+                            className="inline-flex items-center gap-1 rounded-full bg-rose-100 px-3.5 py-1.5 text-xs font-bold text-rose-900 hover:bg-rose-200"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+                            הסר הטבה
                           </button>
                         )}
                       </div>
