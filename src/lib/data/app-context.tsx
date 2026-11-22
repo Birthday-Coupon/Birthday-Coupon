@@ -154,8 +154,23 @@ interface AppContextValue {
 
 const AppContext = createContext<AppContextValue | null>(null);
 
-function makeInitialState(): PersistedState {
+function makeInitialState(liveSupabase: boolean): PersistedState {
   const seed = createDemoSeedState();
+  if (liveSupabase) {
+    return {
+      ...seed,
+      currentUserId: null,
+      users: [],
+      benefits: [],
+      requests: [],
+      events: [],
+      messages: [],
+      notifications: [],
+      waitlistStoreIds: [],
+      disputes: [],
+      adminLogs: [],
+    };
+  }
   return {
     currentUserId: "demo-buyer-1",
     ...seed,
@@ -166,7 +181,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
   const supabaseLive = isSupabaseConfigured();
   const mode: "supabase" | "demo" = supabaseLive ? "supabase" : "demo";
 
-  const [state, setState] = useState<PersistedState>(() => makeInitialState());
+  const [state, setState] = useState<PersistedState>(() => makeInitialState(supabaseLive));
   const [ready, setReady] = useState(false);
 
   // Hydrate from localStorage (demo) or Supabase (live)
@@ -1103,7 +1118,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
   };
 
   const resetDemoState = () => {
-    const fresh = makeInitialState();
+    const fresh = makeInitialState(false);
     setState(fresh);
     try {
       window.localStorage.removeItem(STORAGE_KEY);
