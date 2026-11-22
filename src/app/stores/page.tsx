@@ -6,7 +6,6 @@ import { useSearchParams } from "next/navigation";
 import { Filter, Gift, Search, SlidersHorizontal } from "lucide-react";
 import { useAppData } from "@/lib/data/app-context";
 import { StoreCard } from "@/components/StoreCard";
-import { evaluateStoreLegalityGate } from "@/lib/domain/legality-gate";
 import type { BenefitDiscountType } from "@/lib/types";
 
 function StoresDirectoryContent() {
@@ -17,7 +16,7 @@ function StoresDirectoryContent() {
   const { stores, categories } = useAppData();
   const [query, setQuery] = useState(initialQuery);
   const [categorySlug, setCategorySlug] = useState(initialCategory);
-  const [onlyApproved, setOnlyApproved] = useState(true);
+  const [onlyFriendlyTerms, setOnlyFriendlyTerms] = useState(false);
   const [benefitType, setBenefitType] = useState<"all" | BenefitDiscountType>("all");
   const [sortBy, setSortBy] = useState<"supply" | "rank" | "name">("supply");
 
@@ -26,8 +25,9 @@ function StoresDirectoryContent() {
     return stores
       .filter((store) => {
         if (store.takedown_requested) return false;
-        const gate = evaluateStoreLegalityGate(store);
-        if (onlyApproved && !gate.canAcceptRequests) return false;
+        if (onlyFriendlyTerms && store.legality_status !== "allowed" && store.legality_status !== "conditional") {
+          return false;
+        }
         if (categorySlug !== "all" && store.category_slug !== categorySlug) return false;
         if (benefitType !== "all" && store.benefit_type !== benefitType) return false;
         if (q) {
@@ -48,7 +48,7 @@ function StoresDirectoryContent() {
         }
         return a.name_he.localeCompare(b.name_he, "he");
       });
-  }, [stores, query, categorySlug, onlyApproved, benefitType, sortBy]);
+  }, [stores, query, categorySlug, onlyFriendlyTerms, benefitType, sortBy]);
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
@@ -56,7 +56,7 @@ function StoresDirectoryContent() {
         <div>
           <h1 className="text-3xl font-extrabold text-[#241938]">מאגר חנויות והטבות יום הולדת</h1>
           <p className="mt-1.5 text-sm text-[#5a4c73]">
-            כברירת מחדל מוצגות חנויות שעברו את שער החוקיות (מותר / מותנה). ניתן להציג גם חנויות מידעניות בלבד.
+            כל החנויות פתוחות לפרסום הטבות ולתקשורת בין משתמשים. הערות תנאי המועדון מוצגות למידע בלבד — האחריות המלאה חלה על המשתמשים.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -150,11 +150,11 @@ function StoresDirectoryContent() {
           <label className="inline-flex cursor-pointer items-center gap-2 text-sm font-semibold text-[#3b226b]">
             <input
               type="checkbox"
-              checked={onlyApproved}
-              onChange={(e) => setOnlyApproved(e.target.checked)}
+              checked={onlyFriendlyTerms}
+              onChange={(e) => setOnlyFriendlyTerms(e.target.checked)}
               className="h-4 w-4 rounded accent-[#4b2e83]"
             />
-            הצג חנויות מאושרות לבקשות בלבד (שער חוקיות)
+            הצג רק חנויות עם תנאי מועדון נוחים / מותנים
           </label>
 
           <p className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#66548a]">
@@ -185,7 +185,7 @@ function StoresDirectoryContent() {
                 setQuery("");
                 setCategorySlug("all");
                 setBenefitType("all");
-                setOnlyApproved(false);
+                setOnlyFriendlyTerms(false);
               }}
               className="clay-btn-primary px-5 py-2.5 text-sm font-bold"
             >

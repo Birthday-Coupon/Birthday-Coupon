@@ -129,7 +129,7 @@ export default function HomePage() {
               <div className="absolute -bottom-4 right-4 left-4 flex items-center justify-between gap-3 rounded-2xl border border-white/80 bg-white/95 px-4 py-3 shadow-lg backdrop-blur-md">
                 <div className="text-center flex-1">
                   <p className="text-lg font-extrabold text-[#4b2e83]">{approvedStoresCount}</p>
-                  <p className="text-[11px] font-medium text-[#5a4c73]">חנויות מאושרות</p>
+                  <p className="text-[11px] font-medium text-[#5a4c73]">חנויות פעילות</p>
                 </div>
                 <div className="h-7 w-px bg-[#e6dcfb]" aria-hidden="true" />
                 <div className="text-center flex-1">
@@ -178,8 +178,8 @@ export default function HomePage() {
           {[
             {
               step: "01",
-              title: "בוחרים חנות מאושרת",
-              desc: "כל חנות עוברת שער חוקיות ובדיקת תקנון מועדון לפני שהיא נפתחת לבקשות.",
+              title: "בוחרים חנות מהמאגר",
+              desc: "בכל חנות מוצגים פרטי ההטבה והערות מידעניות על תנאי המועדון — ההחלטה והאחריות הן שלך.",
               icon: Scale,
             },
             {
@@ -225,10 +225,10 @@ export default function HomePage() {
         <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
           <div>
             <h2 id="featured-stores-heading" className="text-2xl font-extrabold text-[#241938] sm:text-3xl">
-              חנויות מאושרות עם היצע פעיל
+              חנויות בולטות במאגר
             </h2>
             <p className="mt-1 text-sm text-[#5a4c73]">
-              מוצגות חנויות שעברו בדיקת תנאי מועדון (נובמבר 2026). אין קשר רשמי לחנויות.
+              האתר הוא לוח חיבור קהילתי בלבד ואינו צד לעסקאות בין המשתמשים. אין קשר רשמי לחנויות.
             </p>
           </div>
           <Link

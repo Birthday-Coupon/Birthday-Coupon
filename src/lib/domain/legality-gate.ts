@@ -10,8 +10,10 @@ export interface StoreGateDecision {
 }
 
 /**
- * Legality Gate (Spec v2 Section 3 & Section 16.4)
- * Default rule: Ambiguity or missing review equals PROHIBITED.
+ * Open Community Model with Full User Responsibility & Liability Disclaimer:
+ * All stores (except those explicitly removed via takedown_requested) are open
+ * for publishing benefits and sending requests. Store terms notes are shown
+ * purely as informational warnings; users act solely at their own responsibility.
  */
 export function evaluateStoreLegalityGate(
   store: Pick<Store, "legality_status" | "takedown_requested" | "legality_conditions">
@@ -23,7 +25,7 @@ export function evaluateStoreLegalityGate(
       requiresConditionsBanner: true,
       seoIndexable: false,
       labelHe: "הוסרה לבקשת החנות",
-      explanationHe: "החנות ביקשה להסיר את הצגת ההטבות באתר ואינה זמינה לבקשות.",
+      explanationHe: "החנות ביקשה להסיר את הצגתה באתר ואינה זמינה לבקשות.",
     };
   }
 
@@ -34,10 +36,10 @@ export function evaluateStoreLegalityGate(
         canAcceptRequests: true,
         requiresConditionsBanner: false,
         seoIndexable: true,
-        labelHe: "מותר לבקשות",
+        labelHe: "תנאי מועדון נוחים",
         explanationHe:
           store.legality_conditions ??
-          "תקנון המועדון נבדק ומאפשר רכישה עצמאית מהחשבון האישי עם משלוח לכתובת בישראל.",
+          "לפי המידע שברשותנו ניתן לבצע הזמנה עם משלוח בישראל. האחריות המלאה לבדיקת תקנון המועדון חלה על המשתמשים בלבד.",
       };
     case "conditional":
       return {
@@ -45,38 +47,37 @@ export function evaluateStoreLegalityGate(
         canAcceptRequests: true,
         requiresConditionsBanner: true,
         seoIndexable: true,
-        labelHe: "מותר בתנאים",
+        labelHe: "בכפוף לתנאי מועדון",
         explanationHe:
           store.legality_conditions ??
-          "מותר בתנאים מוגדרים: בעל ההטבה מבצע את הרכישה בעצמו בחשבונו בלבד ללא העברת קוד.",
+          "ייתכנו תנאים מוגדרים בתקנון המועדון. האתר אינו צד לעסקה ואינו אחראי — האחריות חלה על המשתמשים בלבד.",
       };
     case "prohibited":
       return {
-        canListBenefits: false,
-        canAcceptRequests: false,
+        canListBenefits: true,
+        canAcceptRequests: true,
         requiresConditionsBanner: true,
-        seoIndexable: false,
-        labelHe: "מידע בלבד — ללא בקשות",
+        seoIndexable: true,
+        labelHe: "שימו לב: מגבלות בתקנון",
         explanationHe:
-          store.legality_conditions ??
-          "תנאי המועדון או אופן המימוש אינם מאפשרים שליחת בקשות באתר. עמוד זה מוצג למידע בלבד.",
+          (store.legality_conditions ? `${store.legality_conditions} ` : "") +
+          "לתשומת לבך: האתר אינו חוסם תקשורת בין משתמשים אך מסיר מעצמו כל אחריות — השימוש בהטבה הוא באחריותכם הבלעדית.",
       };
     case "unverified":
     default:
       return {
-        canListBenefits: false,
-        canAcceptRequests: false,
+        canListBenefits: true,
+        canAcceptRequests: true,
         requiresConditionsBanner: true,
-        seoIndexable: false,
-        labelHe: "בבדיקה — לא זמין לבקשות",
+        seoIndexable: true,
+        labelHe: "תנאים לא נבדקו",
         explanationHe:
-          store.legality_conditions ??
-          "תקנון המועדון טרם אומת במלואו. בהתאם לשער החוקיות, אי-בהירות שקולה לאיסור עד השלמת הבדיקה.",
+          (store.legality_conditions ? `${store.legality_conditions} ` : "") +
+          "תנאי המועדון לא נבדקו במלואם. האחריות לבדיקה ולשימוש בהטבה חלה על המשתמשים בלבד והאתר אינו אחראי לכל תוצאה.",
       };
   }
 }
 
-export function isLegalityStatusActionable(status: LegalityStatus, takedownRequested = false): boolean {
-  if (takedownRequested) return false;
-  return status === "allowed" || status === "conditional";
+export function isLegalityStatusActionable(_status: LegalityStatus, takedownRequested = false): boolean {
+  return !takedownRequested;
 }

@@ -180,23 +180,24 @@ describe("Eligibility Windows & 18+ Age Gate (Spec v2 Section 6 & Scenarios 15, 
   });
 });
 
-describe("Legality Gate & Security Guards (Spec v2 Section 3, 9, 14.3, Scenarios 11 & 22)", () => {
-  it("treats prohibited and unverified stores as informational-only with noindex (Scenario 11)", () => {
+describe("Open Community Policy & Security Guards", () => {
+  it("keeps prohibited and unverified stores open for requests with an informational disclaimer banner", () => {
     const prohibited = evaluateStoreLegalityGate({
       legality_status: "prohibited",
       takedown_requested: false,
       legality_conditions: null,
     });
-    expect(prohibited.canAcceptRequests).toBe(false);
-    expect(prohibited.seoIndexable).toBe(false);
+    expect(prohibited.canAcceptRequests).toBe(true);
+    expect(prohibited.canListBenefits).toBe(true);
+    expect(prohibited.requiresConditionsBanner).toBe(true);
 
     const unverified = evaluateStoreLegalityGate({
       legality_status: "unverified",
       takedown_requested: false,
       legality_conditions: null,
     });
-    expect(unverified.canAcceptRequests).toBe(false);
-    expect(unverified.seoIndexable).toBe(false);
+    expect(unverified.canAcceptRequests).toBe(true);
+    expect(unverified.requiresConditionsBanner).toBe(true);
   });
 
   it("immediately disables even an allowed store when takedown_requested is true (Scenario 22)", () => {

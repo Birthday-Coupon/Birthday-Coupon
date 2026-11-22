@@ -1,10 +1,10 @@
 import React from "react";
 import Link from "next/link";
-import { Scale, CheckCircle2, AlertCircle, Ban, HelpCircle } from "lucide-react";
+import { Scale, CheckCircle2, AlertCircle, AlertTriangle, HelpCircle } from "lucide-react";
 
 export const metadata = {
-  title: "איך מבררים אם מותר — שער החוקיות",
-  description: "הסבר על תהליך בדיקת תקנוני המועדונים וסיווג החנויות באתר מתנת יום הולדת.",
+  title: "תנאי מועדונים והסרת אחריות",
+  description: "הסבר על מידע תנאי המועדונים באתר מתנת יום הולדת ואחריותם הבלעדית של המשתמשים.",
 };
 
 export default function LegalityPage() {
@@ -14,63 +14,63 @@ export default function LegalityPage() {
         <div>
           <span className="inline-flex items-center gap-1.5 rounded-full bg-[#e7dbfd] px-3.5 py-1 text-xs font-bold text-[#3b226b]">
             <Scale className="h-4 w-4" aria-hidden="true" />
-            שער חוקיות ותנאי מועדון (סעיף 3)
+            שקיפות והסרת אחריות
           </span>
-          <h1 className="mt-3 text-3xl font-extrabold text-[#241938]">איך אנחנו מבררים אם מותר?</h1>
+          <h1 className="mt-3 text-3xl font-extrabold text-[#241938]">תנאי מועדונים ואחריות המשתמשים</h1>
           <p className="mt-2 text-sm leading-relaxed text-[#5a4c73]">
-            האתר אינו מעודד ואינו מאפשר עקיפה של תנאי מועדוני לקוחות. לפני שניתן לפרסם הטבה או לשלוח בקשה בכל חנות, היא עוברת בדיקת תקנון מתועדת, כולל שמירת קישור, ציטוט רלוונטי ותאריך בדיקה מחודשת (כל 90 יום).
+            אתר <strong>מתנת יום הולדת</strong> פועל כלוח חיבור קהילתי פתוח בלבד. האתר אינו אוכף תקנוני מועדוני לקוחות, אינו חוסם יצירת קשר בין משתמשים בחנויות השונות, ואינו נושא בכל אחריות לפעולות המשתמשים, לביטול הזמנות או לסגירת חשבונות מועדון.
           </p>
         </div>
 
         <div className="rounded-2xl bg-[#fef6d8] p-4 text-sm font-bold text-[#4a3204]">
-          כלל ברירת המחדל שלנו: אי-בהירות או היעדר מידע פומבי שקולים לאיסור עד השלמת הבדיקה.
+          האחריות המלאה והבלעדית לבדיקת תנאי המועדון ולהחלטה כיצד לפעול חלה על המשתמשים עצמם בלבד.
         </div>
 
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="rounded-2xl border border-emerald-200 bg-emerald-50/60 p-5">
             <h2 className="flex items-center gap-2 font-bold text-emerald-900">
               <CheckCircle2 className="h-5 w-5" aria-hidden="true" />
-              מותר
+              תנאי מועדון נוחים
             </h2>
             <p className="mt-2 text-sm text-emerald-950/85">
-              התקנון מתיר רכישה עצמאית מהחשבון האישי ושליחה לכתובת בישראל. מוצגות הטבות וכפתור בקשה.
+              לפי המידע שברשותנו ניתן לבצע הזמנה באתר עם משלוח לכל כתובת בישראל.
             </p>
           </div>
 
           <div className="rounded-2xl border border-amber-200 bg-amber-50/70 p-5">
             <h2 className="flex items-center gap-2 font-bold text-amber-950">
               <AlertCircle className="h-5 w-5" aria-hidden="true" />
-              מותנה
+              בכפוף לתנאי מועדון
             </h2>
             <p className="mt-2 text-sm text-amber-950/85">
-              מותר בתנאים מוגדרים (למשל הזמנה ישירה בחשבון בלבד ללא העברת קוד או מינימום הזמנה). התנאים מוצגים בבירור לפני שליחת בקשה.
+              קיימים תנאים מוגדרים (כגון מינימום הזמנה או הזמנה ישירה בחשבון). ההערה מוצגת לשקיפות בלבד.
             </p>
           </div>
 
-          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
-            <h2 className="flex items-center gap-2 font-bold text-slate-900">
-              <Ban className="h-5 w-5" aria-hidden="true" />
-              אסור
+          <div className="rounded-2xl border border-rose-200 bg-rose-50/60 p-5">
+            <h2 className="flex items-center gap-2 font-bold text-rose-900">
+              <AlertTriangle className="h-5 w-5" aria-hidden="true" />
+              שימו לב: מגבלות בתקנון
             </h2>
-            <p className="mt-2 text-sm text-slate-700">
-              התקנון אוסר או שהמימוש פיזי אישי בסניפים בלבד (לדוגמה אלדו). עמוד החנות מוצג למידע בלבד (noindex), ללא הטבות וללא בקשות.
+            <p className="mt-2 text-sm text-rose-950/85">
+              תקנון החנות עשוי להגביל מימוש או לדרוש מימוש פיזי. האתר אינו חוסם תקשורת בין משתמשים, אך מסיר מעצמו כל אחריות.
             </p>
           </div>
 
           <div className="rounded-2xl border border-purple-200 bg-purple-50/70 p-5">
             <h2 className="flex items-center gap-2 font-bold text-purple-950">
               <HelpCircle className="h-5 w-5" aria-hidden="true" />
-              לא נבדק / לא ברור
+              תנאים לא נבדקו
             </h2>
             <p className="mt-2 text-sm text-purple-950/80">
-              כאשר אין מידע פומבי מלא (למשל סמסונג ישראל). היחס זהה ל״אסור״ עד בירור מתועד.
+              תנאי המועדון לא אומתו במלואם. כל פעולה בחנות זו נעשית על דעת המשתמשים ואחריותם הבלעדית.
             </p>
           </div>
         </div>
 
         <div className="border-t border-[#efe7fe] pt-5 flex flex-wrap items-center justify-between gap-3">
           <p className="text-xs text-[#5a4c73]">
-            נציג חנות או מועדון לקוחות? ניתן לבקש תיקון או הסרה מלאה ונשיב בתוך 3 ימי עסקים.
+            נציג חנות המבקש תיקון מידע או הסרה של עמוד החנות מהאתר יכול לפנות אלינו כאן:
           </p>
           <Link href="/takedown" className="clay-btn-primary px-5 py-2 text-xs font-bold">
             טופס הסרת חנות / תיקון פרטים

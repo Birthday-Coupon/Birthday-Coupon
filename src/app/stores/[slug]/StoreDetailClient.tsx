@@ -206,27 +206,26 @@ export function StoreDetailClient({ slug }: { slug: string }) {
           </div>
         </dl>
 
-        {/* Legality Gate Box (Section 3) */}
+        {/* Informational Terms Notice & Liability Waiver */}
         <div
           className={`mt-6 rounded-2xl border p-4 ${
-            gate.canAcceptRequests
-              ? "border-[#dfd2fb] bg-[#faf7ff]"
-              : "border-amber-300 bg-amber-50"
+            store.legality_status === "prohibited" || store.legality_status === "unverified"
+              ? "border-amber-300 bg-amber-50"
+              : "border-[#dfd2fb] bg-[#faf7ff]"
           }`}
         >
           <div className="flex items-start gap-2.5">
             <Scale className="mt-0.5 h-5 w-5 shrink-0 text-[#4b2e83]" aria-hidden="true" />
             <div className="space-y-1 text-sm">
-              <p className="font-bold text-[#241938]">שער חוקיות ותנאי מועדון: {gate.labelHe}</p>
+              <p className="font-bold text-[#241938]">הערת מידע על תנאי המועדון: {gate.labelHe}</p>
               <p className="text-[#4e3f69]">{gate.explanationHe}</p>
               {store.terms_quoted_clause && (
                 <blockquote className="mt-2 border-r-2 border-[#b79ced] pr-3 text-xs italic text-[#5a4c73]">
-                  ציטוט מבדיקת התקנון: &ldquo;{store.terms_quoted_clause}&rdquo;
+                  מידע שנאסף מתקנון המועדון: &ldquo;{store.terms_quoted_clause}&rdquo;
                 </blockquote>
               )}
-              <p className="pt-1 text-[11px] text-[#66548a]">
-                בדיקה אחרונה: {store.last_reviewed_at?.slice(0, 10) ?? "—"} • בדיקה תקופתית הבאה (כל 90 יום):{" "}
-                {store.next_review_at?.slice(0, 10) ?? "—"}
+              <p className="pt-1 text-[11px] font-semibold text-[#5a4c73]">
+                הסרת אחריות: האתר משמש כלוח קהילתי בלבד ואינו אחראי להתנהלות המשתמשים, לביטולי הזמנות או לתנאי המועדון.
               </p>
             </div>
           </div>
@@ -504,7 +503,7 @@ export function StoreDetailClient({ slug }: { slug: string }) {
                     className="mt-0.5 h-4 w-4 accent-[#4b2e83]"
                   />
                   <span>
-                    אני מאשר/ת כי קראתי את תנאי המועדון, כי לפי ידיעתי הפעולה מותרת, וכי האתר אינו צד לעסקה ואינו אחראי לביטול הזמנה או הפסקת הטבה.
+                    אני מאשר/ת כי ידוע לי שהאתר משמש כלוח חיבור בלבד, אינו צד לעסקה ואינו נושא בכל אחריות לתנאי המועדון, לביטול הזמנה, לסגירת חשבון מועדון או להתנהלות המשתמשים — ואני פועל/ת על אחריותי הבלעדית.
                   </span>
                 </label>
 
