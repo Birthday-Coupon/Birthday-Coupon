@@ -26,6 +26,7 @@ function RequestDetailInner() {
   const searchParams = useSearchParams();
   const id = searchParams.get("id") ?? "";
   const {
+    ready,
     currentUser,
     requests,
     events,
@@ -42,6 +43,14 @@ function RequestDetailInner() {
   const [actionError, setActionError] = useState<string | null>(null);
   const [disputeReason, setDisputeReason] = useState("");
   const [showDisputeBox, setShowDisputeBox] = useState(false);
+
+  if (!ready) {
+    return (
+      <div className="mx-auto max-w-lg px-4 py-16 text-center text-sm font-semibold text-[#5a4c73]">
+        טוען את פרטי הבקשה...
+      </div>
+    );
+  }
 
   if (!currentUser) {
     return (

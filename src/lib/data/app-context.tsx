@@ -452,6 +452,57 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
           });
         }
       )
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "messages",
+        },
+        (payload) => {
+          const row = payload.new as Record<string, unknown>;
+          const incomingMsg: ChatMessage = {
+            id: String(row.id),
+            request_id: String(row.request_id),
+            sender_id: String(row.sender_id),
+            sender_name: row.sender_id === currentUser.id ? currentUser.display_name : "צד שני",
+            body: String(row.body ?? ""),
+            contained_contact_warning: Boolean(row.contained_contact_warning),
+            reported: Boolean(row.reported),
+            created_at: String(row.created_at ?? new Date().toISOString()),
+          };
+          setState((prev) => {
+            if (prev.messages.some((m) => m.id === incomingMsg.id)) return prev;
+            return { ...prev, messages: [...prev.messages, incomingMsg] };
+          });
+        }
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "purchase_requests",
+        },
+        (payload) => {
+          const updated = payload.new as Record<string, unknown>;
+          setState((prev) => ({
+            ...prev,
+            requests: prev.requests.map((r) =>
+              r.id === String(updated.id)
+                ? {
+                    ...r,
+                    status: (updated.status as RequestStatus) ?? r.status,
+                    accepted_at: (updated.accepted_at as string | null) ?? r.accepted_at,
+                    purchased_at: (updated.purchased_at as string | null) ?? r.purchased_at,
+                    completed_at: (updated.completed_at as string | null) ?? r.completed_at,
+                    updated_at: String(updated.updated_at ?? r.updated_at),
+                  }
+                : r
+            ),
+          }));
+        }
+      )
       .subscribe();
 
     return () => {
@@ -1225,6 +1276,13 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
 
   const markNotificationRead = async (notificationId: string) => {
     const now = new Date().toISOString();
+    if (mode === "supabase") {
+      const supabase = createSupabaseBrowserClient();
+      await supabase
+        ?.from("notifications")
+        .update({ read_at: now })
+        .eq("id", notificationId);
+    }
     setState((prev) => ({
       ...prev,
       notifications: prev.notifications.map((n) =>

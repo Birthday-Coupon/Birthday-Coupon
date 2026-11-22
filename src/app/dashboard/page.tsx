@@ -33,6 +33,7 @@ type TabKey = "benefits" | "incoming" | "outgoing" | "notifications" | "waitlist
 
 export default function DashboardPage() {
   const {
+    ready,
     currentUser,
     currentUserBirthDate,
     benefits,
@@ -69,6 +70,14 @@ export default function DashboardPage() {
       setBirthDateInput(currentUserBirthDate);
     }
   }, [currentUserBirthDate]);
+
+  if (!ready) {
+    return (
+      <div className="mx-auto max-w-lg px-4 py-16 text-center text-sm font-semibold text-[#5a4c73]">
+        טוען את האזור האישי...
+      </div>
+    );
+  }
 
   if (!currentUser) {
     return (
@@ -515,7 +524,7 @@ export default function DashboardPage() {
                   <div className="flex items-center gap-2">
                     {n.link && (
                       <Link
-                        href={n.link}
+                        href={n.link.replace(/^\/requests\/([0-9a-fA-F-]+)$/, "/requests/view?id=$1")}
                         onClick={() => void markNotificationRead(n.id)}
                         className="rounded-full bg-[#efe7fe] px-3.5 py-1.5 text-xs font-bold text-[#4b2e83]"
                       >
