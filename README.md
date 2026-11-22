@@ -3,7 +3,7 @@
 פלטפורמה קהילתית חינמית (RTL עברית) המחברת בין בעלי הטבות יום הולדת במועדוני לקוחות מאושרים לבין קונים בישראל — בלי לשתף סיסמאות, קופונים אישיים או פרטי אשראי.
 
 ## פריסה חיה
-- **אתר חי (GitHub Pages):** https://a5400300801-pixel.github.io/Birthday-Coupon/
+- **אתר חי (GitHub Pages):** https://birthday-coupon.github.io/Birthday-Coupon/
 - **אוטומציית פריסה:** כל דחיפה ל-`main` מפעילה את `.github/workflows/deploy-pages.yml` (Typecheck → Unit Tests → Static Export → GitHub Pages).
 - **מסד נתונים, אימות, RLS ו-Cron:** פועל על Supabase (`pg_cron` מריץ את `public.run_scheduled_maintenance()` אוטומטית מדי שעה).
 
