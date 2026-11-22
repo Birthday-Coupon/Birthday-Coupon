@@ -232,16 +232,19 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
         let liveMessages: ChatMessage[] = [];
         let liveNotifications: AppNotification[] = [];
         let liveWaitlistIds: string[] = [];
+        let liveTakedowns: TakedownRequest[] = [];
+        let liveDisputes: DisputeItem[] = [];
+        let liveAdminLogs: AdminLog[] = [];
 
         if (authData?.user) {
           const [
-            { data: profile },
+            { data: initialProfile },
             { data: rolesData },
             { data: reqsData },
             { data: notifsData },
             { data: waitData },
           ] = await Promise.all([
-            supabase.from("users").select("*").eq("id", authData.user.id).single(),
+            supabase.from("users").select("*").eq("id", authData.user.id).maybeSingle(),
             supabase.from("user_roles").select("role").eq("user_id", authData.user.id),
             supabase
               .from("purchase_requests")
@@ -256,11 +259,62 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
             supabase.from("waitlist").select("store_id").eq("user_id", authData.user.id),
           ]);
 
+          let profile = initialProfile;
+          if (!profile) {
+            const fallbackName =
+              (authData.user.user_metadata?.display_name as string | undefined)?.trim() ||
+              authData.user.email?.split("@")[0] ||
+              "חבר קהילה";
+            const fallbackMonth = Number(authData.user.user_metadata?.birth_month) || 1;
+            const { data: created } = await supabase
+              .from("users")
+              .upsert({
+                id: authData.user.id,
+                display_name: fallbackName.slice(0, 40),
+                birth_month: Math.min(12, Math.max(1, fallbackMonth)),
+                account_status: "active",
+              })
+              .select("*")
+              .maybeSingle();
+            profile = created;
+          }
+
           if (profile) {
+            const parsedRoles = (rolesData ?? []).map((r: { role: string }) => r.role) as PublicUser["roles"];
             currentUser = {
               ...profile,
-              roles: (rolesData ?? []).map((r: { role: string }) => r.role) as PublicUser["roles"],
+              roles: parsedRoles.length > 0 ? parsedRoles : ["user"],
             };
+          }
+
+          if (currentUser && (currentUser.roles.includes("admin") || currentUser.roles.includes("content_manager"))) {
+            const [{ data: tdData }, { data: dispData }, { data: logsData }] = await Promise.all([
+              supabase.from("store_takedown_requests").select("*").order("created_at", { ascending: false }),
+              supabase.from("disputes").select("*").order("opened_at", { ascending: false }),
+              supabase.from("admin_logs").select("*").order("created_at", { ascending: false }).limit(50),
+            ]);
+            liveTakedowns = (tdData as TakedownRequest[] | null) ?? [];
+            liveDisputes = ((dispData ?? []) as Record<string, unknown>[]).map((d) => ({
+              id: String(d.id),
+              request_id: String(d.request_id),
+              store_name_he: "חנות",
+              product_name: `בקשה ${String(d.request_id).slice(0, 8)}`,
+              opened_by_name: "משתמש",
+              reason: String(d.reason ?? ""),
+              status: d.status as DisputeItem["status"],
+              outcome_note: (d.outcome_note as string | null) ?? null,
+              opened_at: String(d.opened_at ?? ""),
+              closed_at: (d.closed_at as string | null) ?? null,
+            }));
+            liveAdminLogs = ((logsData ?? []) as Record<string, unknown>[]).map((l) => ({
+              id: String(l.id),
+              admin_name: currentUser?.display_name ?? "מנהל",
+              action: String(l.action ?? ""),
+              target_type: String(l.target_type ?? ""),
+              target_id: (l.target_id as string | null) ?? null,
+              details: (l.details as Record<string, unknown>) ?? {},
+              created_at: String(l.created_at ?? ""),
+            }));
           }
 
           if (reqsData && reqsData.length > 0) {
@@ -299,6 +353,9 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
           messages: liveMessages,
           notifications: liveNotifications,
           waitlistStoreIds: liveWaitlistIds,
+          takedowns: liveTakedowns,
+          disputes: liveDisputes,
+          adminLogs: liveAdminLogs,
           stores:
             storesData && storesData.length > 0
               ? storesData.map((s: Record<string, unknown>) => ({
@@ -388,28 +445,20 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
       const { data, error } = await supabase.auth.signUp({
         email: input.email,
         password: input.password,
+        options: {
+          data: {
+            display_name: cleanName,
+            birth_month: birthMonth,
+            birth_date: input.birthDate,
+            marketing_consent: input.marketingConsent,
+          },
+        },
       });
       if (error || !data.user) {
         return { ok: false, error: error?.message ?? "שגיאה ביצירת החשבון." };
       }
-      await supabase.from("users").insert({
-        id: data.user.id,
-        display_name: cleanName,
-        birth_month: birthMonth,
-        account_status: "active",
-      });
-      await supabase.from("user_private").insert({
-        user_id: data.user.id,
-        birth_date: input.birthDate,
-        marketing_consent: input.marketingConsent,
-      });
-      await supabase.from("user_roles").insert({ user_id: data.user.id, role: "user" });
-      await supabase.from("consent_log").insert([
-        { user_id: data.user.id, consent_type: "terms_of_service", version: "2.0" },
-        { user_id: data.user.id, consent_type: "privacy_policy", version: "2.0" },
-        { user_id: data.user.id, consent_type: "age_18_confirmation", version: "2.0" },
-        { user_id: data.user.id, consent_type: "birth_month_display", version: "2.0" },
-      ]);
+      // Profile, user_private, user_roles & consent_log are created atomically by the DB trigger on auth.users.
+      // If a live session is active immediately (e.g. email confirmation disabled), ensure local state is hydrated.
       const newUser: PublicUser = {
         id: data.user.id,
         display_name: cleanName,
@@ -422,7 +471,9 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
         roles: ["user"],
         created_at: new Date().toISOString(),
       };
-      setState((prev) => ({ ...prev, currentUserId: newUser.id, users: [...prev.users, newUser] }));
+      if (data.session) {
+        setState((prev) => ({ ...prev, currentUserId: newUser.id, users: [newUser] }));
+      }
       return { ok: true };
     }
 
@@ -455,14 +506,33 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
       if (error || !data.user) {
         return { ok: false, error: "אימייל או סיסמה שגויים." };
       }
-      const [{ data: profile }, { data: rolesData }] = await Promise.all([
-        supabase.from("users").select("*").eq("id", data.user.id).single(),
+      const [{ data: initialProfile }, { data: rolesData }] = await Promise.all([
+        supabase.from("users").select("*").eq("id", data.user.id).maybeSingle(),
         supabase.from("user_roles").select("role").eq("user_id", data.user.id),
       ]);
+      let profile = initialProfile;
+      if (!profile) {
+        const fallbackName =
+          (data.user.user_metadata?.display_name as string | undefined)?.trim() ||
+          data.user.email?.split("@")[0] ||
+          "חבר קהילה";
+        const { data: created } = await supabase
+          .from("users")
+          .upsert({
+            id: data.user.id,
+            display_name: fallbackName.slice(0, 40),
+            birth_month: Number(data.user.user_metadata?.birth_month) || 1,
+            account_status: "active",
+          })
+          .select("*")
+          .maybeSingle();
+        profile = created;
+      }
       if (profile) {
+        const parsedRoles = (rolesData ?? []).map((r: { role: string }) => r.role) as PublicUser["roles"];
         const loggedUser: PublicUser = {
           ...profile,
-          roles: (rolesData ?? []).map((r: { role: string }) => r.role) as PublicUser["roles"],
+          roles: parsedRoles.length > 0 ? parsedRoles : ["user"],
         };
         setState((prev) => ({
           ...prev,
