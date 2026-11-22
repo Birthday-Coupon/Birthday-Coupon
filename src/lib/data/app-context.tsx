@@ -38,6 +38,7 @@ import {
 } from "@/lib/domain/contact-guard";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
+import { showBrowserNotification } from "@/lib/services/browser-notifications";
 
 interface PersistedState {
   currentUserId: string | null;
@@ -63,6 +64,7 @@ interface AppContextValue {
   ready: boolean;
   categories: typeof SEED_CATEGORIES;
   currentUser: PublicUser | null;
+  currentUserBirthDate: string | null;
   users: PublicUser[];
   stores: Store[];
   benefits: UserBenefit[];
@@ -91,6 +93,7 @@ interface AppContextValue {
   loginUser: (email: string, password: string) => Promise<{ ok: boolean; error?: string }>;
   logoutUser: () => Promise<void>;
   acknowledgeSafety: () => Promise<void>;
+  updateBirthDate: (birthDate: string) => Promise<{ ok: boolean; error?: string }>;
   deleteAccount: () => Promise<{ ok: boolean; error?: string }>;
   // Benefits & Waitlist
   publishBenefit: (input: {
@@ -182,6 +185,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
   const mode: "supabase" | "demo" = supabaseLive ? "supabase" : "demo";
 
   const [state, setState] = useState<PersistedState>(() => makeInitialState(supabaseLive));
+  const [currentUserBirthDate, setCurrentUserBirthDate] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
 
   // Hydrate from localStorage (demo) or Supabase (live)
@@ -239,12 +243,14 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
         if (authData?.user) {
           const [
             { data: initialProfile },
+            { data: privateData },
             { data: rolesData },
             { data: reqsData },
             { data: notifsData },
             { data: waitData },
           ] = await Promise.all([
             supabase.from("users").select("*").eq("id", authData.user.id).maybeSingle(),
+            supabase.from("user_private").select("birth_date").eq("user_id", authData.user.id).maybeSingle(),
             supabase.from("user_roles").select("role").eq("user_id", authData.user.id),
             supabase
               .from("purchase_requests")
@@ -258,6 +264,10 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
               .order("created_at", { ascending: false }),
             supabase.from("waitlist").select("store_id").eq("user_id", authData.user.id),
           ]);
+
+          if (privateData?.birth_date) {
+            setCurrentUserBirthDate(String(privateData.birth_date));
+          }
 
           let profile = initialProfile;
           if (!profile) {
@@ -403,6 +413,45 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     () => state.users.find((u) => u.id === state.currentUserId) ?? null,
     [state.users, state.currentUserId]
   );
+
+  // Realtime Browser / Windows OS notifications for live Supabase notifications
+  useEffect(() => {
+    if (mode !== "supabase" || !currentUser?.id) return;
+    const supabase = createSupabaseBrowserClient();
+    if (!supabase) return;
+
+    const channel = supabase
+      .channel(`notifications:${currentUser.id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "notifications",
+          filter: `user_id=eq.${currentUser.id}`,
+        },
+        (payload) => {
+          const incoming = payload.new as AppNotification;
+          setState((prev) => ({
+            ...prev,
+            notifications: [
+              incoming,
+              ...prev.notifications.filter((n) => n.id !== incoming.id),
+            ],
+          }));
+          showBrowserNotification({
+            title: incoming.title,
+            body: incoming.body,
+            link: incoming.link,
+          });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [mode, currentUser?.id]);
 
   // Enrich stores with active benefit counts (respecting Israel date window)
   const storesWithCounts = useMemo(() => {
@@ -580,6 +629,47 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
         u.id === currentUser.id ? { ...u, safety_acknowledged_at: now } : u
       ),
     }));
+  };
+
+  const updateBirthDate: AppContextValue["updateBirthDate"] = async (birthDate) => {
+    if (!currentUser) return { ok: false, error: "יש להתחבר כדי לעדכן תאריך לידה." };
+    const ageCheck = verifyMinimumAge(birthDate);
+    if (!ageCheck.valid) {
+      return { ok: false, error: ageCheck.reason ?? "הגיל המינימלי לשימוש באתר הוא 18." };
+    }
+    const birthMonth = Number(birthDate.split("-")[1]);
+
+    if (mode === "supabase") {
+      const supabase = createSupabaseBrowserClient();
+      if (!supabase) return { ok: false, error: "חיבור Supabase אינו זמין." };
+
+      const { error: privErr } = await supabase
+        .from("user_private")
+        .upsert(
+          { user_id: currentUser.id, birth_date: birthDate, updated_at: new Date().toISOString() },
+          { onConflict: "user_id" }
+        );
+      if (privErr) {
+        return { ok: false, error: privErr.message };
+      }
+
+      const { error: pubErr } = await supabase
+        .from("users")
+        .update({ birth_month: birthMonth, updated_at: new Date().toISOString() })
+        .eq("id", currentUser.id);
+      if (pubErr) {
+        return { ok: false, error: pubErr.message };
+      }
+    }
+
+    setCurrentUserBirthDate(birthDate);
+    setState((prev) => ({
+      ...prev,
+      users: prev.users.map((u) =>
+        u.id === currentUser.id ? { ...u, birth_month: birthMonth } : u
+      ),
+    }));
+    return { ok: true };
   };
 
   const deleteAccount = async () => {
@@ -1271,6 +1361,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
         ready,
         categories: SEED_CATEGORIES,
         currentUser,
+        currentUserBirthDate,
         users: state.users,
         stores: storesWithCounts,
         benefits: state.benefits,
@@ -1289,6 +1380,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
         loginUser,
         logoutUser,
         acknowledgeSafety,
+        updateBirthDate,
         deleteAccount,
         publishBenefit,
         updateBenefitStatus,

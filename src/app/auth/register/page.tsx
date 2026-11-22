@@ -17,7 +17,6 @@ export default function RegisterPage() {
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [privacyAccepted, setPrivacyAccepted] = useState(false);
   const [birthMonthConsent, setBirthMonthConsent] = useState(false);
-  const [marketingConsent, setMarketingConsent] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -34,7 +33,7 @@ export default function RegisterPage() {
         termsAccepted,
         privacyAccepted,
         birthMonthConsent,
-        marketingConsent,
+        marketingConsent: false,
       });
       if (!res.ok) {
         setError(res.error ?? "שגיאה בהרשמה.");
@@ -170,18 +169,6 @@ export default function RegisterPage() {
                 className="mt-0.5 h-4 w-4 accent-[#4b2e83]"
               />
               <span>אני מאשר/ת הצגת חודש הלידה שלי בלבד (ללא יום ושנה) לצורך הצגת זמינות הטבות.</span>
-            </label>
-
-            <label className="flex items-start gap-2 cursor-pointer text-[#5a4c73]">
-              <input
-                type="checkbox"
-                checked={marketingConsent}
-                onChange={(e) => setMarketingConsent(e.target.checked)}
-                className="mt-0.5 h-4 w-4 accent-[#4b2e83]"
-              />
-              <span>
-                (אופציונלי) אני מעוניין/ת לקבל עדכונים ודיוור שיווקי במייל (ניתן להסיר בכל עת לפי חוק התקשורת).
-              </span>
             </label>
           </fieldset>
 

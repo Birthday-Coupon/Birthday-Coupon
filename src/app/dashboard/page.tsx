@@ -1,10 +1,12 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import {
   AlertTriangle,
   Bell,
+  BellRing,
+  Calendar,
   Download,
   EyeOff,
   Gift,
@@ -18,6 +20,12 @@ import {
 import { useAppData } from "@/lib/data/app-context";
 import { BenefitStatusBadge, RequestStatusBadge } from "@/components/Badges";
 import { canOwnerHideBenefit } from "@/lib/domain/state-machine";
+import {
+  getBrowserNotificationPermission,
+  requestBrowserNotificationPermission,
+  showBrowserNotification,
+  type BrowserNotificationPermission,
+} from "@/lib/services/browser-notifications";
 import { he } from "@/lib/i18n";
 
 type TabKey = "benefits" | "incoming" | "outgoing" | "notifications" | "waitlist" | "settings";
@@ -25,6 +33,7 @@ type TabKey = "benefits" | "incoming" | "outgoing" | "notifications" | "waitlist
 export default function DashboardPage() {
   const {
     currentUser,
+    currentUserBirthDate,
     benefits,
     requests,
     notifications,
@@ -33,12 +42,26 @@ export default function DashboardPage() {
     updateBenefitStatus,
     toggleWaitlist,
     markNotificationRead,
+    updateBirthDate,
     deleteAccount,
   } = useAppData();
 
   const [tab, setTab] = useState<TabKey>("incoming");
+  const [birthDateInput, setBirthDateInput] = useState(currentUserBirthDate ?? "");
+  const [savingBirthDate, setSavingBirthDate] = useState(false);
+  const [notifPermission, setNotifPermission] = useState<BrowserNotificationPermission>("default");
   const [feedback, setFeedback] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setNotifPermission(getBrowserNotificationPermission());
+  }, []);
+
+  useEffect(() => {
+    if (currentUserBirthDate) {
+      setBirthDateInput(currentUserBirthDate);
+    }
+  }, [currentUserBirthDate]);
 
   if (!currentUser) {
     return (
@@ -77,6 +100,38 @@ export default function DashboardPage() {
     a.click();
     URL.revokeObjectURL(url);
     setFeedback("קובץ ייצוא הנתונים האישיים הורד למחשב שלך.");
+  };
+
+  const handleEnableBrowserNotifs = async () => {
+    setError(null);
+    const perm = await requestBrowserNotificationPermission();
+    setNotifPermission(perm);
+    if (perm === "granted") {
+      showBrowserNotification({
+        title: "מתנת יום הולדת — ההתראות הופעלו!",
+        body: "מעכשיו תקבל/י התראות דפדפן ו-Windows בזמן אמת על בקשות והודעות חדשות.",
+      });
+      setFeedback("התראות דפדפן / ווינדוס הופעלו בהצלחה!");
+    } else if (perm === "denied") {
+      setError("הרשאת ההתראות חסומה בדפדפן. ניתן לאפשר אותה דרך הגדרות האתר בסרגל הכתובת.");
+    }
+  };
+
+  const handleSaveBirthDate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setFeedback(null);
+    setSavingBirthDate(true);
+    try {
+      const res = await updateBirthDate(birthDateInput);
+      if (!res.ok) {
+        setError(res.error ?? "לא ניתן לעדכן את תאריך הלידה.");
+      } else {
+        setFeedback("תאריך הלידה עודכן בהצלחה! חודש הלידה שלך בפרופיל עודכן בהתאם.");
+      }
+    } finally {
+      setSavingBirthDate(false);
+    }
   };
 
   const handleDeleteAccount = async () => {
@@ -286,7 +341,47 @@ export default function DashboardPage() {
         )}
 
         {tab === "notifications" && (
-          <div className="space-y-3">
+          <div className="space-y-4">
+            <div className="clay-card flex flex-col justify-between gap-3 bg-[#faf7ff] p-5 sm:flex-row sm:items-center">
+              <div>
+                <h2 className="flex items-center gap-2 text-sm font-extrabold text-[#241938]">
+                  <BellRing className="h-4 w-4 text-[#6c46c1]" aria-hidden="true" />
+                  התראות דפדפן / ווינדוס (בזמן אמת, ללא מיילים)
+                </h2>
+                <p className="mt-1 text-xs text-[#5a4c73]">
+                  {notifPermission === "granted"
+                    ? "התראות דפדפן ו-Windows פעילות. תקבל/י קפיצה מיידית על בקשות, אישורים והודעות."
+                    : notifPermission === "denied"
+                      ? "התראות הדפדפן חסומות כרגע — ניתן לאפשר אותן בהגדרות הדפדפן."
+                      : "הפעל/י התראות דפדפן כדי לקבל עדכונים ישירות ל-Windows ולדפדפן."}
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {notifPermission !== "granted" ? (
+                  <button
+                    type="button"
+                    onClick={() => void handleEnableBrowserNotifs()}
+                    className="clay-btn-primary px-4 py-2 text-xs font-bold"
+                  >
+                    הפעל התראות דפדפן / ווינדוס
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      showBrowserNotification({
+                        title: "בדיקת התראה — מתנת יום הולדת",
+                        body: "התראות הדפדפן וה-Windows שלך עובדות מצוין!",
+                      })
+                    }
+                    className="rounded-full bg-[#fef6d8] px-4 py-2 text-xs font-bold text-[#4a3204]"
+                  >
+                    שלח התראת בדיקה
+                  </button>
+                )}
+              </div>
+            </div>
+
             {myNotifications.length === 0 ? (
               <div className="clay-card p-8 text-center text-sm text-[#5a4c73]">אין התראות חדשות.</div>
             ) : (
@@ -356,30 +451,68 @@ export default function DashboardPage() {
         )}
 
         {tab === "settings" && (
-          <div className="clay-card space-y-6 p-6">
-            <div>
-              <h2 className="text-lg font-bold text-[#241938]">פרטיות וזכויות המשתמש (תיקון 13)</h2>
-              <p className="mt-1 text-sm text-[#5a4c73]">
-                תוכל/י להוריד עותק מלא של המידע האישי שלך או לבקש מחיקת חשבון. מחיקת חשבון נחסמת אוטומטית כל עוד קיימת בקשה פעילה או מחלוקת פתוחה.
-              </p>
-            </div>
-            <div className="flex flex-wrap gap-3">
-              <button
-                type="button"
-                onClick={handleExportData}
-                className="inline-flex items-center gap-2 rounded-full border border-[#4b2e83] bg-white px-5 py-2.5 text-sm font-bold text-[#4b2e83] hover:bg-[#f3ecff]"
-              >
-                <Download className="h-4 w-4" aria-hidden="true" />
-                ייצוא הנתונים שלי (JSON)
-              </button>
-              <button
-                type="button"
-                onClick={() => void handleDeleteAccount()}
-                className="inline-flex items-center gap-2 rounded-full bg-rose-100 px-5 py-2.5 text-sm font-bold text-rose-900 hover:bg-rose-200"
-              >
-                <Trash2 className="h-4 w-4" aria-hidden="true" />
-                מחיקת חשבון
-              </button>
+          <div className="space-y-5">
+            {/* Birth Date Update Card */}
+            <form onSubmit={handleSaveBirthDate} className="clay-card space-y-4 p-6">
+              <div>
+                <h2 className="flex items-center gap-2 text-lg font-bold text-[#241938]">
+                  <Calendar className="h-5 w-5 text-[#6c46c1]" aria-hidden="true" />
+                  עדכון תאריך לידה
+                </h2>
+                <p className="mt-1 text-xs text-[#5a4c73]">
+                  תאריך הלידה המלא נשמר בטבלה הפרטית שלך בלבד (<code>user_private</code>) ואינו מוצג למשתמשים אחרים. חודש הלידה הציבורי יתעדכן אוטומטית.
+                </p>
+              </div>
+              <div className="flex flex-wrap items-end gap-3">
+                <div>
+                  <label htmlFor="settings-dob" className="block text-xs font-bold text-[#4b2e83] mb-1">
+                    תאריך לידה (גיל 18+ בלבד)
+                  </label>
+                  <input
+                    id="settings-dob"
+                    type="date"
+                    required
+                    value={birthDateInput}
+                    onChange={(e) => setBirthDateInput(e.target.value)}
+                    className="rounded-2xl border border-[#dfd2fb] bg-[#fbf9ff] px-4 py-2.5 text-sm font-medium"
+                  />
+                </div>
+                <button
+                  type="submit"
+                  disabled={savingBirthDate || !birthDateInput}
+                  className="clay-btn-primary px-5 py-2.5 text-sm font-bold disabled:opacity-60"
+                >
+                  {savingBirthDate ? "שומר..." : "שמור תאריך לידה"}
+                </button>
+              </div>
+            </form>
+
+            {/* Privacy & Account Actions */}
+            <div className="clay-card space-y-6 p-6">
+              <div>
+                <h2 className="text-lg font-bold text-[#241938]">פרטיות וזכויות המשתמש (תיקון 13)</h2>
+                <p className="mt-1 text-sm text-[#5a4c73]">
+                  תוכל/י להוריד עותק מלא של המידע האישי שלך או לבקש מחיקת חשבון. מחיקת חשבון נחסמת אוטומטית כל עוד קיימת בקשה פעילה או מחלוקת פתוחה.
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-3">
+                <button
+                  type="button"
+                  onClick={handleExportData}
+                  className="inline-flex items-center gap-2 rounded-full border border-[#4b2e83] bg-white px-5 py-2.5 text-sm font-bold text-[#4b2e83] hover:bg-[#f3ecff]"
+                >
+                  <Download className="h-4 w-4" aria-hidden="true" />
+                  ייצוא הנתונים שלי (JSON)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void handleDeleteAccount()}
+                  className="inline-flex items-center gap-2 rounded-full bg-rose-100 px-5 py-2.5 text-sm font-bold text-rose-900 hover:bg-rose-200"
+                >
+                  <Trash2 className="h-4 w-4" aria-hidden="true" />
+                  מחיקת חשבון
+                </button>
+              </div>
             </div>
           </div>
         )}
