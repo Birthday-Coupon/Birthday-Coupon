@@ -931,24 +931,29 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     if (target.owner_id !== currentUser.id && !currentUser.roles.includes("admin")) {
       return { ok: false, error: "אין הרשאה למחוק הטבה זו." };
     }
-    if (target.status === "reserved") {
-      return { ok: false, error: "לא ניתן למחוק הטבה בזמן שיש עליה בקשה מאושרת פעילה." };
+
+    const hasPurchasedOrDisputed = state.requests.some(
+      (r) => r.benefit_id === benefitId && (r.status === "purchased" || r.status === "disputed")
+    );
+    if (hasPurchasedOrDisputed) {
+      return { ok: false, error: "לא ניתן להסיר הטבה שכבר סומנה כנרכשה או נמצאת במחלוקת." };
     }
 
-    const now = new Date().toISOString();
     if (mode === "supabase") {
       const supabase = createSupabaseBrowserClient();
-      const { error } =
-        (await supabase
-          ?.from("user_benefits")
-          .update({ status: "hidden", deleted_at: now, updated_at: now })
-          .eq("id", benefitId)) ?? {};
+      const { error } = (await supabase?.rpc("owner_delete_benefit", { p_benefit_id: benefitId })) ?? {};
       if (error) return { ok: false, error: error.message };
     }
 
+    const now = new Date().toISOString();
     setState((prev) => ({
       ...prev,
       benefits: prev.benefits.filter((b) => b.id !== benefitId),
+      requests: prev.requests.map((r) =>
+        r.benefit_id === benefitId && (r.status === "pending" || r.status === "info_requested" || r.status === "accepted")
+          ? { ...r, status: "cancelled" as RequestStatus, updated_at: now }
+          : r
+      ),
     }));
     return { ok: true };
   };

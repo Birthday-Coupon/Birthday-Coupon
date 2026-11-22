@@ -374,7 +374,7 @@ export default function DashboardPage() {
                             סמן כמומש מחוץ לאתר
                           </button>
                         )}
-                        {b.status !== "reserved" && (
+                        {b.status !== "redeemed" && (
                           <button
                             type="button"
                             onClick={async () => {
@@ -384,7 +384,7 @@ export default function DashboardPage() {
                               if (!res.ok) {
                                 setError(res.error ?? "לא ניתן למחוק את ההטבה.");
                               } else {
-                                setFeedback("ההטבה הוסרה בהצלחה.");
+                                setFeedback("ההטבה הוסרה בהצלחה (ובקשות פתוחות עליה בוטלו עם הודעה לקונה).");
                               }
                             }}
                             className="inline-flex items-center gap-1 rounded-full bg-rose-100 px-3.5 py-1.5 text-xs font-bold text-rose-900 hover:bg-rose-200"
