@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+  <head>
+    <meta charset="utf-8" />
+    <title>מתנת יום הולדת</title>
+    <style>
+      * { box-sizing: border-box; font-family: system-ui, -apple-system, "Segoe UI", Arial, sans-serif; }
+      body {
+        width: 340px;
+        margin: 0;
+        padding: 14px;
+        background: linear-gradient(160deg, #f7f3ff 0%, #ffffff 100%);
+        color: #241938;
+      }
+      .header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 12px;
+      }
+      .title { font-size: 15px; font-weight: 800; color: #4b2e83; margin: 0; }
+      .refresh {
+        border: 1px solid #dfd2fb;
+        background: #ffffff;
+        color: #4b2e83;
+        font-size: 11px;
+        font-weight: 700;
+        padding: 4px 10px;
+        border-radius: 999px;
+        cursor: pointer;
+      }
+      .search {
+        width: 100%;
+        padding: 8px 12px;
+        border-radius: 999px;
+        border: 1.5px solid #dfd2fb;
+        background: #ffffff;
+        font-size: 12px;
+        margin-bottom: 10px;
+        outline: none;
+      }
+      .list {
+        max-height: 300px;
+        overflow-y: auto;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+      .item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        padding: 10px 12px;
+        border-radius: 14px;
+        background: #ffffff;
+        border: 1px solid #e8dffc;
+        text-decoration: none;
+        color: inherit;
+      }
+      .item:hover { border-color: #b79ced; background: #faf7ff; }
+      .name { font-size: 13px; font-weight: 700; }
+      .disc { font-size: 11px; color: #7a5200; font-weight: 600; margin-top: 2px; }
+      .pill {
+        font-size: 11px;
+        font-weight: 800;
+        padding: 4px 8px;
+        border-radius: 999px;
+        white-space: nowrap;
+      }
+      .pill-active { background: #efe7fe; color: #4b2e83; }
+      .pill-empty { background: #f3f4f6; color: #6b7280; }
+      .footer {
+        margin-top: 12px;
+        display: flex;
+        gap: 8px;
+      }
+      .btn {
+        flex: 1;
+        text-align: center;
+        text-decoration: none;
+        padding: 8px;
+        border-radius: 999px;
+        font-size: 12px;
+        font-weight: 700;
+      }
+      .btn-primary { background: #4b2e83; color: #ffffff; }
+      .btn-butter { background: #f6d469; color: #3d2803; }
+    </style>
+  </head>
+  <body>
+    <div class="header">
+      <h1 class="title">🎁 מתנת יום הולדת</h1>
+      <button type="button" id="refreshBtn" class="refresh">רענן</button>
+    </div>
+    <input id="searchInput" class="search" type="search" placeholder="חפש חנות..." />
+    <div id="storeList" class="list">טוען חנויות...</div>
+    <div class="footer">
+      <a class="btn btn-primary" href="https://birthday-coupon.github.io/Birthday-Coupon/stores/?utm_source=chrome_popup" target="_blank">לכל החנויות</a>
+      <a class="btn btn-butter" href="https://birthday-coupon.github.io/Birthday-Coupon/benefits/new/?utm_source=chrome_popup" target="_blank">פרסם הטבה</a>
+    </div>
+    <script src="popup.js"></script>
+  </body>
+</html>

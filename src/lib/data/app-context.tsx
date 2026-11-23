@@ -39,6 +39,13 @@ import {
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { showBrowserNotification } from "@/lib/services/browser-notifications";
+import {
+  DEFAULT_WATCH_SETTINGS,
+  watchSettingsFromRow,
+  watchSettingsToRow,
+  type WaitlistRow,
+  type WatchSettings,
+} from "@/lib/domain/watchlist-settings";
 
 interface PersistedState {
   currentUserId: string | null;
@@ -50,6 +57,7 @@ interface PersistedState {
   messages: ChatMessage[];
   notifications: AppNotification[];
   waitlistStoreIds: string[];
+  waitlistSettings: Record<string, WatchSettings>;
   reviews: StoreTermsReview[];
   takedowns: TakedownRequest[];
   disputes: DisputeItem[];
@@ -73,6 +81,7 @@ interface AppContextValue {
   messages: ChatMessage[];
   notifications: AppNotification[];
   waitlistStoreIds: string[];
+  waitlistSettings: Record<string, WatchSettings>;
   reviews: StoreTermsReview[];
   takedowns: TakedownRequest[];
   disputes: DisputeItem[];
@@ -114,6 +123,7 @@ interface AppContextValue {
   }) => Promise<{ ok: boolean; error?: string }>;
   deleteBenefit: (benefitId: string) => Promise<{ ok: boolean; error?: string }>;
   toggleWaitlist: (storeId: string) => Promise<{ ok: boolean; joined: boolean }>;
+  updateWaitlistSettings: (storeId: string, patch: Partial<WatchSettings>) => Promise<void>;
   // Requests & Chat
   createPurchaseRequest: (input: {
     benefitId: string;
@@ -136,6 +146,7 @@ interface AppContextValue {
   toggleMutualPhoneConsent: (requestId: string) => Promise<void>;
   reportMessage: (messageId: string) => Promise<void>;
   markNotificationRead: (notificationId: string) => Promise<void>;
+  markAllNotificationsRead: () => Promise<void>;
   // Takedown & Admin
   submitTakedown: (input: {
     storeId?: string;
@@ -177,6 +188,7 @@ function makeInitialState(liveSupabase: boolean): PersistedState {
       messages: [],
       notifications: [],
       waitlistStoreIds: [],
+      waitlistSettings: {},
       disputes: [],
       adminLogs: [],
     };
@@ -184,6 +196,7 @@ function makeInitialState(liveSupabase: boolean): PersistedState {
   return {
     currentUserId: "demo-buyer-1",
     ...seed,
+    waitlistSettings: {},
   };
 }
 
@@ -203,7 +216,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
         if (raw) {
           const parsed = JSON.parse(raw) as PersistedState;
           if (parsed && Array.isArray(parsed.stores) && parsed.stores.length > 0) {
-            setState(parsed);
+            setState({ ...parsed, waitlistSettings: parsed.waitlistSettings ?? {} });
           }
         }
       } catch {
@@ -243,6 +256,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
         let liveMessages: ChatMessage[] = [];
         let liveNotifications: AppNotification[] = [];
         let liveWaitlistIds: string[] = [];
+        let liveWaitlistSettings: Record<string, WatchSettings> = {};
         let liveTakedowns: TakedownRequest[] = [];
         let liveDisputes: DisputeItem[] = [];
         let liveAdminLogs: AdminLog[] = [];
@@ -269,7 +283,10 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
               .select("*")
               .eq("user_id", authData.user.id)
               .order("created_at", { ascending: false }),
-            supabase.from("waitlist").select("store_id").eq("user_id", authData.user.id),
+            supabase
+              .from("waitlist")
+              .select("store_id, min_discount_percent, only_verified, muted_until")
+              .eq("user_id", authData.user.id),
           ]);
 
           if (privateData?.birth_date) {
@@ -359,6 +376,12 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
 
           liveNotifications = (notifsData as AppNotification[] | null) ?? [];
           liveWaitlistIds = (waitData ?? []).map((w: { store_id: string }) => w.store_id);
+          liveWaitlistSettings = Object.fromEntries(
+            ((waitData ?? []) as WaitlistRow[]).map((row) => [
+              row.store_id,
+              watchSettingsFromRow(row),
+            ])
+          );
         }
 
         setState((prev) => ({
@@ -370,6 +393,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
           messages: liveMessages,
           notifications: liveNotifications,
           waitlistStoreIds: liveWaitlistIds,
+          waitlistSettings: liveWaitlistSettings,
           takedowns: liveTakedowns,
           disputes: liveDisputes,
           adminLogs: liveAdminLogs,
@@ -965,16 +989,59 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
       if (exists) {
         await supabase?.from("waitlist").delete().eq("user_id", currentUser.id).eq("store_id", storeId);
       } else {
-        await supabase?.from("waitlist").insert({ user_id: currentUser.id, store_id: storeId });
+        await supabase?.from("waitlist").insert({
+          user_id: currentUser.id,
+          store_id: storeId,
+          ...watchSettingsToRow(DEFAULT_WATCH_SETTINGS),
+        });
       }
+    }
+    setState((prev) => {
+      const waitlistSettings = { ...prev.waitlistSettings };
+      if (exists) delete waitlistSettings[storeId];
+      else waitlistSettings[storeId] = DEFAULT_WATCH_SETTINGS;
+      return {
+        ...prev,
+        waitlistStoreIds: exists
+          ? prev.waitlistStoreIds.filter((id) => id !== storeId)
+          : [...prev.waitlistStoreIds, storeId],
+        waitlistSettings,
+      };
+    });
+    return { ok: true, joined: !exists };
+  };
+
+  const updateWaitlistSettings: AppContextValue["updateWaitlistSettings"] = async (
+    storeId,
+    patch
+  ) => {
+    const nextForServer = {
+      ...DEFAULT_WATCH_SETTINGS,
+      ...(state.waitlistSettings[storeId] ?? {}),
+      ...patch,
+    };
+    if (mode === "supabase" && currentUser) {
+      const supabase = createSupabaseBrowserClient();
+      await supabase?.from("waitlist").upsert(
+        {
+          user_id: currentUser.id,
+          store_id: storeId,
+          ...watchSettingsToRow(nextForServer),
+        },
+        { onConflict: "user_id,store_id" }
+      );
     }
     setState((prev) => ({
       ...prev,
-      waitlistStoreIds: exists
-        ? prev.waitlistStoreIds.filter((id) => id !== storeId)
-        : [...prev.waitlistStoreIds, storeId],
+      waitlistSettings: {
+        ...prev.waitlistSettings,
+        [storeId]: {
+          ...DEFAULT_WATCH_SETTINGS,
+          ...(prev.waitlistSettings[storeId] ?? {}),
+          ...patch,
+        },
+      },
     }));
-    return { ok: true, joined: !exists };
   };
 
   const createPurchaseRequest: AppContextValue["createPurchaseRequest"] = async (input) => {
@@ -1336,6 +1403,25 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     }));
   };
 
+  const markAllNotificationsRead = async () => {
+    if (!currentUser) return;
+    const now = new Date().toISOString();
+    if (mode === "supabase") {
+      const supabase = createSupabaseBrowserClient();
+      await supabase
+        ?.from("notifications")
+        .update({ read_at: now })
+        .eq("user_id", currentUser.id)
+        .is("read_at", null);
+    }
+    setState((prev) => ({
+      ...prev,
+      notifications: prev.notifications.map((n) =>
+        n.user_id === currentUser.id && !n.read_at ? { ...n, read_at: now } : n
+      ),
+    }));
+  };
+
   const submitTakedown: AppContextValue["submitTakedown"] = async (input) => {
     const item: TakedownRequest = {
       id: `td-${Date.now()}`,
@@ -1562,6 +1648,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
         messages: state.messages,
         notifications: state.notifications,
         waitlistStoreIds: state.waitlistStoreIds,
+        waitlistSettings: state.waitlistSettings,
         reviews: state.reviews,
         takedowns: state.takedowns,
         disputes: state.disputes,
@@ -1579,12 +1666,14 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
         updateBenefitDetails,
         deleteBenefit,
         toggleWaitlist,
+        updateWaitlistSettings,
         createPurchaseRequest,
         transitionRequest,
         sendMessage,
         toggleMutualPhoneConsent,
         reportMessage,
         markNotificationRead,
+        markAllNotificationsRead,
         submitTakedown,
         reviewStoreLegality,
         resolveDispute,

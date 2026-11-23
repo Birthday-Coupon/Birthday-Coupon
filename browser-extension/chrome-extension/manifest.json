@@ -1,0 +1,29 @@
+{
+  "manifest_version": 3,
+  "name": "מתנת יום הולדת — תזכורת הטבות קהילתית",
+  "short_name": "מתנת יום הולדת",
+  "version": "1.0.0",
+  "description": "מקפיץ התראה עדינה בכניסה לחנויות עם הטבות יום הולדת פעילות באתר מתנת יום הולדת. פרטיות מלאה — בדיקת דומיין מקומית בלבד.",
+  "permissions": ["storage", "alarms"],
+  "host_permissions": [
+    "https://kpcrugqbsegjvjcbsdyn.supabase.co/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_title": "מתנת יום הולדת — הטבות זמינות",
+    "default_popup": "popup.html"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://*/*", "http://*/*"],
+      "exclude_matches": [
+        "https://birthday-coupon.github.io/*",
+        "http://localhost/*"
+      ],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}
