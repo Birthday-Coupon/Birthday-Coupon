@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { RequestStatusBadge } from "@/components/Badges";
 import { WatchSettingsEditor } from "@/components/dashboard/WatchSettingsEditor";
+import { ExtensionPromoBanner } from "@/components/ExtensionPromoBanner";
 import type {
   AppNotification,
   PublicUser,
@@ -262,6 +263,8 @@ export function DashboardHome({
           </ul>
         </section>
       )}
+
+      <ExtensionPromoBanner />
 
       {suggestedWatches.length > 0 && watchedStores.length < 3 && (
         <section className="rounded-2xl border border-[#d2bff8] bg-[#faf7ff] p-4">

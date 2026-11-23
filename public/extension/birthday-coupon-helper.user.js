@@ -5,7 +5,6 @@
 // @description  מזהה אוטומטית חנויות עם הטבת יום הולדת באתר מתנת יום הולדת ומקפיץ התראה עדינה עם קישור ישיר להטבה (פרטיות מלאה — התאמת דומיין מקומית בלבד).
 // @author       Birthday Coupon IL
 // @match        *://*/*
-// @exclude      *://birthday-coupon.github.io/*
 // @exclude      *://localhost:*/*
 // @grant        GM_xmlhttpRequest
 // @grant        GM_getValue
@@ -31,6 +30,13 @@
   if (window.top !== window.self) return; // Skip iframes
 
   const currentHost = window.location.hostname.toLowerCase().replace(/^www\./, "");
+
+  // Signal to Birthday Gift IL website that the helper script is installed
+  if (currentHost === "birthday-coupon.github.io") {
+    document.documentElement.dataset.bgExtensionInstalled = "true";
+    window.dispatchEvent(new Event("bg-extension-ready"));
+    return;
+  }
 
   function matchesDomain(hostname, storeDomains) {
     if (!Array.isArray(storeDomains)) return false;

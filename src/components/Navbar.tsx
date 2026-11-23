@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Gift, LogOut, Menu, Store, UserCircle2, Wrench, X } from "lucide-react";
+import { Chrome, Gift, LogOut, Menu, Store, UserCircle2, Wrench, X } from "lucide-react";
 import { useAppData } from "@/lib/data/app-context";
 import { he } from "@/lib/i18n";
 
@@ -21,6 +21,7 @@ export function Navbar() {
 
   const links = [
     { href: "/stores", label: he.nav.stores, icon: Store },
+    { href: "/extension", label: "תוסף דפדפן", icon: Chrome },
     { href: "/dashboard", label: he.nav.dashboard, icon: UserCircle2 },
   ];
 

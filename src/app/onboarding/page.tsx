@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { CheckCircle2, Gift, Sparkles } from "lucide-react";
 import { useAppData } from "@/lib/data/app-context";
 import { evaluateStoreLegalityGate } from "@/lib/domain/legality-gate";
+import { ExtensionPromoBanner } from "@/components/ExtensionPromoBanner";
 
 export default function OnboardingPage() {
   const router = useRouter();
@@ -50,6 +51,10 @@ export default function OnboardingPage() {
         <p className="mt-1.5 text-sm text-[#5a4c73]">
           בחר/י חנויות מאושרות שבהן יש לך הטבת יום הולדת — כך נוכל לפרסם אותן אוטומטית בחלון יום ההולדת שלך (תוכל/י להסתיר בכל עת).
         </p>
+
+        <div className="mt-5">
+          <ExtensionPromoBanner compact newTab />
+        </div>
 
         <div className="mt-6 grid gap-3 sm:grid-cols-2">
           {approvedStores.map((store) => {
