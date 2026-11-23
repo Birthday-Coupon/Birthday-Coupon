@@ -9,6 +9,7 @@ const groups: { title: string; links: { href: string; label: string }[] }[] = [
     links: [
       { href: "/stores", label: "חנויות והטבות" },
       { href: "/benefits/new", label: "פרסום הטבה" },
+      { href: "/extension", label: "תוסף דפדפן" },
       { href: "/suggest-store", label: "הצעת חנות" },
       { href: "/contact", label: "צור קשר" },
     ],
