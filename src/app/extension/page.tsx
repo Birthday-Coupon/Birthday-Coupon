@@ -2,8 +2,8 @@ import React from "react";
 import Link from "next/link";
 import { Chrome, Code2, ExternalLink, Lock, ShieldCheck, Sparkles } from "lucide-react";
 
-// Update this single constant once Google approves the Chrome Web Store listing:
-const CHROME_WEB_STORE_URL = "";
+const CHROME_WEB_STORE_URL =
+  "https://chromewebstore.google.com/detail/jnliahfmodhbajiminifobjmhihkeijg";
 
 export const metadata = {
   title: "תוסף דפדפן — תזכורת הטבות אוטומטית",
